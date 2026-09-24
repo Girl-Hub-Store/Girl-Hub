@@ -1,0 +1,1 @@
+const path=location.pathname.split('/').pop()||'index.html';const active=path.includes('clothes')?'clothes':path.includes('accessories')?'accessories':path.includes('offers')?'offers':path.includes('new')?'new':path.includes('wishlist')?'wishlist':'home';document.addEventListener('DOMContentLoaded',()=>{mountHeader(active)});
