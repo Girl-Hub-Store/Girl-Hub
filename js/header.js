@@ -21,7 +21,6 @@ function header(active=''){
       </div>
       <div class="header-left">
         <a class="mobile-contact" href="https://wa.me/201279860213" target="_blank" rel="noopener noreferrer">تواصل</a>
-        <button class="mini-user" aria-label="الحساب">●</button>
         <a class="cart-icon" href="cart.html" aria-label="السلة">🛒<span class="badge cart-count">0</span></a>
         <a class="wish-icon" href="wishlist.html" aria-label="المفضلة">♡<span class="badge wish-count">0</span></a>
         <button class="lang lang-toggle" data-lang-toggle type="button" aria-label="تغيير اللغة">AR</button>

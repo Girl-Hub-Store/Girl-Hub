@@ -10,3 +10,7 @@
 
 ## GitHub Pages
 ارفع محتويات المجلد إلى repository ثم فعّل GitHub Pages من Settings → Pages → Deploy from branch.
+
+
+## Supabase + Mobile Admin
+See `SUPABASE-MOBILE-SETUP.md` and run `supabase-setup.sql` before enabling cloud login or mobile image uploads. Configure `js/supabase-config.js` with the Supabase project URL and anon/public key. Never add a service_role key to frontend files.

@@ -20,4 +20,9 @@ const PRODUCTS=[
 {id:19,name:'بنطلون كتان رملي',nameEn:'Sand Linen Trousers',cat:'pants',type:'clothes',price:760,old:890,img:'assets/images/pants.jpg',tag:'جديد',available:true},
 {id:20,name:'بنطلون واسع كريمي',nameEn:'Cream Wide Trousers',cat:'pants',type:'clothes',price:840,old:980,img:'assets/images/beige-pants.jpg',tag:'خصم',available:true}
 ];
+// Admin-managed catalog overrides are applied when this browser has loaded the dashboard data.
+try {
+ const managed = JSON.parse(localStorage.getItem('girlhub_admin_products') || 'null');
+ if (Array.isArray(managed) && managed.length) { PRODUCTS.splice(0, PRODUCTS.length, ...managed); }
+} catch (_) {}
 function getProduct(id){return PRODUCTS.find(p=>p.id===Number(id))}

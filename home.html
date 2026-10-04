@@ -52,6 +52,6 @@
   </section>
 </main>
 <div class="toast"></div>
-<script src="js/products.js"></script><script src="js/header.js"></script><script src="js/page.js"></script><script src="js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/supabase-config.js"></script><script src="js/supabase-client.js"></script><script src="js/products.js"></script><script src="js/store-data.js"></script><script src="js/header.js"></script><script src="js/page.js"></script><script src="js/main.js"></script>
 <script>document.addEventListener("DOMContentLoaded",()=>{const hero=document.querySelector('.gh-hero');if(!hero)return;hero.classList.add('loaded');const slides=[...hero.querySelectorAll('.gh-hero-slide')],dots=[...hero.querySelectorAll('.gh-hero-dots i')];let i=0,timer;const go=n=>{i=(n+slides.length)%slides.length;slides.forEach((s,k)=>s.classList.toggle('is-active',k===i));dots.forEach((d,k)=>d.classList.toggle('active',k===i));hero.classList.remove('hero-pulse');void hero.offsetWidth;hero.classList.add('hero-pulse')};const restart=()=>{clearInterval(timer);timer=setInterval(()=>go(i+1),6000)};hero.querySelector('.gh-hero-next')?.addEventListener('click',()=>{go(i+1);restart()});hero.querySelector('.gh-hero-prev')?.addEventListener('click',()=>{go(i-1);restart()});dots.forEach((d,k)=>d.addEventListener('click',()=>{go(k);restart()}));go(0);restart()});</script>
 </body></html>
