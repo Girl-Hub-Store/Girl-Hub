@@ -107,7 +107,101 @@ $('#refreshBtn').onclick=()=>refreshAll();$('#reloadOrders').onclick=loadOrders;
 $('#exportOrders').onclick=exportOrders;$('#addProduct').onclick=()=>productModal();$('#productSearch').oninput=renderProducts;$('#productTypeFilter').onchange=renderProducts;$('#productVisibility').onchange=renderProducts;
 $('#addCategory').onclick=()=>categoryModal();$('#addPromo').onclick=()=>promoModal();$('#addBanner').onclick=()=>bannerModal();
 $('#storeSettings').addEventListener('submit',e=>{e.preventDefault();let f=new FormData(e.currentTarget);data.settings={storeName:f.get('storeName'),whatsapp:f.get('whatsapp'),shipping:Number(f.get('shipping')),minimum:Number(f.get('minimum')),announcement:f.get('announcement'),announcementEnabled:f.has('announcementEnabled')};persist('settings');activity('تعديل إعدادات المتجر','إعدادات عامة');toast('تم حفظ الإعدادات');});
-$('#passwordForm').addEventListener('submit',e=>{e.preventDefault();let f=new FormData(e.currentTarget),old=localStorage.getItem(KEYS.pass)||'GH-admin-2026';if(f.get('oldPassword')!==old){$('#passwordMessage').textContent='كلمة المرور الحالية غير صحيحة';return}if(f.get('newPassword')!==f.get('confirmPassword')){$('#passwordMessage').textContent='تأكيد كلمة المرور غير مطابق';return}localStorage.setItem(KEYS.pass,f.get('newPassword'));$('#passwordMessage').textContent='تم تغيير كلمة المرور على هذا المتصفح';e.currentTarget.reset();toast('تم تغيير كلمة المرور');});
+$('#passwordForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+
+  const f=new FormData(e.currentTarget);
+
+  const oldPassword=String(
+    f.get('oldPassword')||''
+  );
+
+  const newPassword=String(
+    f.get('newPassword')||''
+  );
+
+  const confirmPassword=String(
+    f.get('confirmPassword')||''
+  );
+
+  const c=sb();
+
+  if(!c){
+    $('#passwordMessage').textContent=
+      'Supabase غير متصل.';
+    return;
+  }
+
+  if(newPassword!==confirmPassword){
+    $('#passwordMessage').textContent=
+      'تأكيد كلمة المرور غير مطابق';
+    return;
+  }
+
+  if(newPassword.length<6){
+    $('#passwordMessage').textContent=
+      'كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل';
+    return;
+  }
+
+  try{
+
+    // معرفة الحساب الحالي
+    const {
+      data:{user},
+      error:getUserError
+    }=await c.auth.getUser();
+
+    if(getUserError||!user){
+      throw new Error(
+        'يجب تسجيل الدخول أولًا.'
+      );
+    }
+
+    // التأكد من الباسورد القديم عن طريق Supabase
+    const {
+      error:signError
+    }=await c.auth.signInWithPassword({
+      email:user.email,
+      password:oldPassword
+    });
+
+    if(signError){
+      throw new Error(
+        'كلمة المرور الحالية غير صحيحة'
+      );
+    }
+
+    // تغيير الباسورد داخل Supabase Auth
+    const {
+      error:updateError
+    }=await c.auth.updateUser({
+      password:newPassword
+    });
+
+    if(updateError){
+      throw updateError;
+    }
+
+    // حذف أي باسورد قديم مخزن محليًا
+    localStorage.removeItem(KEYS.pass);
+
+    $('#passwordMessage').textContent=
+      'تم تغيير كلمة المرور في Supabase بنجاح';
+
+    e.currentTarget.reset();
+
+    toast('تم تغيير كلمة المرور');
+
+  }catch(err){
+
+    console.error(err);
+
+    $('#passwordMessage').textContent=
+      err?.message ||
+      'تعذر تغيير كلمة المرور';
+  }
+});
 $('#saveBackend').onclick=async()=>{data.backend={url:$('#backendUrl').value.trim(),key:$('#backendKey').value.trim()};save('backend',data.backend);let r=await backendGet('ping');$('#backendMessage').textContent=sb()?'Supabase مضبوط في ملف الإعدادات؛ سجّلي الخروج ثم الدخول بحساب مصرح له.':(r?.ok?'تم الاتصال بالخلفية القديمة':(data.backend.url?'لم يتم التحقق من الاتصال. تأكدي من رابط Code.gs.':'أكملي إعداد Supabase في js/supabase-config.js.')); if(r?.ok){$('#backendNotice').textContent='متصل بالخلفية المركزية. ستتم مزامنة التغييرات مع قاعدة بيانات المتجر.';$('#backendNotice').classList.add('connected');loadOrders()}};
 $('#backupBtn').onclick=backup;$('#restoreInput').onchange=restore;
 renderAll();fillSettings();loadRemoteData();loadOrders();
