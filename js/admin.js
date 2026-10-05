@@ -26,7 +26,80 @@ function init(){
 data.products=read('products',seedProducts());data.orders=read('orders',[]).map(normalizeOrder);data.promos=read('promos',defaultPromos);data.categories=read('categories',defaultCategories);data.banners=read('banners',defaultBanners);data.settings=read('settings',{storeName:'Girl Hub',whatsapp:'201279860213',shipping:50,minimum:0,announcement:'عروض مميزة لكل يوم ✨',announcementEnabled:true});data.backend=read('backend',{url:'',key:''});
 $('#backendUrl').value=data.backend.url||'';$('#backendKey').value=data.backend.key||'';if(sb()){$('#loginHint').textContent='استخدمي البريد وكلمة المرور لحساب مضاف إلى قائمة مديري المتجر في Supabase.';$('#adminEmail').required=true;}else{$('#loginHint').textContent='للتجربة المحلية فقط: GH-admin-2026. لا ترفعي الموقع قبل إعداد Supabase.';}
 const logged=sessionStorage.getItem('gh_admin_session')==='yes'||sessionStorage.getItem('gh_admin_session')==='supabase';if(logged){if(sb())adminAllowed().then(ok=>ok?showApp():(sessionStorage.removeItem('gh_admin_session'),$('#login').hidden=false));else showApp();}
-$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();let p=$('#adminPassword').value,stored=localStorage.getItem(KEYS.pass)||'GH-admin-2026';if(p!==stored){$('#loginError').textContent='كلمة المرور غير صحيحة.';return}sessionStorage.setItem('gh_admin_session','yes');$('#loginError').textContent='';showApp();if(p==='GH-admin-2026')toast('غيّري كلمة المرور الافتراضية من الإعدادات')});
+$('#loginForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+
+  const email=($('#adminEmail')?.value||'').trim();
+  const password=$('#adminPassword').value;
+  const c=sb();
+
+  if(!c){
+    $('#loginError').textContent='Supabase غير متصل. تأكدي من إعداد js/supabase-config.js.';
+    return;
+  }
+
+  if(!email||!password){
+    $('#loginError').textContent='اكتبي البريد الإلكتروني وكلمة المرور.';
+    return;
+  }
+
+  $('#loginError').textContent='جاري تسجيل الدخول...';
+
+  try{
+
+    // تسجيل الدخول الحقيقي من Supabase Auth
+    const {data,error}=await c.auth.signInWithPassword({
+      email:email,
+      password:password
+    });
+
+    if(error) throw error;
+
+    if(!data?.user){
+      throw new Error('لم يتم العثور على حساب بعد تسجيل الدخول.');
+    }
+
+    // التأكد أن الحساب مدير للمتجر
+    const {data:member,error:memberError}=await c
+      .from('admin_users')
+      .select('user_id,role,active')
+      .eq('user_id',data.user.id)
+      .eq('active',true)
+      .maybeSingle();
+
+    if(memberError){
+      throw new Error(
+        'تعذر التحقق من صلاحيات المدير: '+memberError.message
+      );
+    }
+
+    if(!member){
+
+      await c.auth.signOut();
+
+      throw new Error(
+        'هذا الحساب غير مضاف كمدير للمتجر في Supabase.'
+      );
+    }
+
+    // حفظ حالة الدخول فقط، وليس كلمة المرور
+    sessionStorage.setItem(
+      'gh_admin_session',
+      'supabase'
+    );
+
+    $('#loginError').textContent='';
+
+    showApp();
+
+  }catch(err){
+
+    console.error('Admin login error:',err);
+
+    $('#loginError').textContent=
+      err?.message || 'تعذر تسجيل الدخول.';
+  }
+});
 $('#logoutBtn').onclick=async()=>{sessionStorage.removeItem('gh_admin_session');if(sb())await sb().auth.signOut();location.reload()};
 $('#nav').addEventListener('click',e=>{let b=e.target.closest('[data-tab]');if(b)openTab(b.dataset.tab)});
 $$('[data-goto]').forEach(b=>b.addEventListener('click',()=>openTab(b.dataset.goto)));
