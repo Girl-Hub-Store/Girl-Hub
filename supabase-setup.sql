@@ -39,6 +39,8 @@ drop policy if exists "admins delete orders" on public.orders;
 create policy "admins delete orders" on public.orders for delete to authenticated using (public.is_store_admin());
 grant insert on public.orders to anon, authenticated;
 grant select, update, delete on public.orders to authenticated;
+create index if not exists orders_created_at_idx on public.orders(created_at desc);
+create index if not exists orders_status_idx on public.orders(status);
 
 alter table public.admin_users enable row level security;
 alter table public.store_data enable row level security;

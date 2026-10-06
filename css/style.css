@@ -641,3 +641,7 @@ body:has(.gh-sealed-page-notice) main{filter:none}
 body.gh-category-page-sealed main> :not(.gh-sealed-page-notice){filter:grayscale(1);opacity:.88}
 body.gh-category-page-sealed .gh-sealed-page-notice{filter:none;opacity:1}
 #promoCode{width:100%;min-height:48px;padding:12px 15px;font-size:17px;letter-spacing:.5px;box-sizing:border-box}
+
+/* Girl Hub final fixes */
+.discount-grid .figma-product-card{flex:0 0 220px}.figma-product-card .product-name{font-size:14px;line-height:1.7;min-height:48px;white-space:normal;overflow:visible;text-overflow:clip}.figma-product-card .product-price{font-size:13px;display:flex;gap:8px;align-items:center}.discounts-section{overflow:hidden}.gh-hero-slides{position:absolute;inset:0}.promo-field label{font-size:14px!important;font-weight:700}.promo-entry input{font-size:17px!important;min-height:48px}.promo-entry .btn{font-size:13px;min-height:48px}.accessory-feature img{background:#f4e8e4}.color-chip{box-shadow:0 1px 4px rgba(0,0,0,.08)}
+@media(max-width:600px){.discount-grid .figma-product-card{flex-basis:calc((100vw - 48px)/2);min-width:calc((100vw - 48px)/2)}.figma-product-card .product-name{font-size:12px;min-height:42px}.promo-entry{align-items:stretch}.promo-entry input{font-size:16px!important}.promo-entry .btn{padding:0 12px;font-size:11px}}
