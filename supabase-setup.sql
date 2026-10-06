@@ -75,3 +75,120 @@ drop policy if exists "admins delete store images" on storage.objects;
 create policy "admins delete store images" on storage.objects for delete to authenticated using (bucket_id = 'store-images' and public.is_store_admin());
 
 -- Do not seed empty store_data rows. On first authorized dashboard login, current local defaults are uploaded only if the table is empty.
+
+-- Central promo usage: prevents max-use limits from being bypassed by another phone/browser.
+create table if not exists public.promo_redemptions (
+  id uuid primary key default gen_random_uuid(),
+  code text not null,
+  order_number text not null unique,
+  customer_phone text,
+  subtotal numeric not null default 0,
+  discount numeric not null default 0,
+  created_at timestamptz not null default now()
+);
+alter table public.promo_redemptions enable row level security;
+drop policy if exists "admins read promo redemptions" on public.promo_redemptions;
+create policy "admins read promo redemptions" on public.promo_redemptions for select to authenticated using (public.is_store_admin());
+grant select on public.promo_redemptions to authenticated;
+
+create or replace function public.reserve_promo(
+  p_code text,
+  p_subtotal numeric,
+  p_customer_phone text,
+  p_order_number text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  row_data jsonb;
+  promos jsonb;
+  promo jsonb;
+  idx integer;
+  v_code text;
+  v_type text;
+  v_value numeric;
+  v_max integer;
+  v_used integer;
+  v_per_customer integer;
+  v_min numeric;
+  v_starts date;
+  v_expires date;
+  v_discount numeric;
+  v_customer_uses integer;
+begin
+  if coalesce(trim(p_code),'') = '' then
+    return jsonb_build_object('ok',true,'discount',0,'promoPercent',0,'code','');
+  end if;
+
+  select data into row_data from public.store_data where kind='promos' for update;
+  promos := coalesce(row_data, '[]'::jsonb);
+  idx := 0;
+  promo := null;
+  for promo in select value from jsonb_array_elements(promos) loop
+    if upper(coalesce(promo->>'code','')) = upper(trim(p_code)) then
+      exit;
+    end if;
+    idx := idx + 1;
+  end loop;
+  if promo is null or coalesce(promo->>'code','') = '' then
+    return jsonb_build_object('ok',false,'message','كود الخصم غير موجود');
+  end if;
+
+  v_code := upper(trim(promo->>'code'));
+  if coalesce((promo->>'enabled')::boolean,false) = false then
+    return jsonb_build_object('ok',false,'message','الكود متوقف');
+  end if;
+  v_starts := nullif(promo->>'startsAt','')::date;
+  v_expires := nullif(promo->>'expiresAt','')::date;
+  if v_starts is not null and current_date < v_starts then
+    return jsonb_build_object('ok',false,'message','الكود لسه ما بدأش');
+  end if;
+  if v_expires is not null and current_date > v_expires then
+    return jsonb_build_object('ok',false,'message','مدة الكود انتهت');
+  end if;
+
+  v_max := coalesce(nullif(promo->>'maxUses','')::integer,0);
+  v_used := coalesce(nullif(promo->>'used','')::integer,0);
+  if v_max > 0 and v_used >= v_max then
+    return jsonb_build_object('ok',false,'message','الكود وصل للحد الأقصى للاستخدام');
+  end if;
+
+  v_per_customer := greatest(coalesce(nullif(promo->>'perCustomer','')::integer,1),1);
+  select count(*) into v_customer_uses from public.promo_redemptions
+    where code=v_code and coalesce(customer_phone,'')=coalesce(p_customer_phone,'');
+  if coalesce(p_customer_phone,'') <> '' and v_customer_uses >= v_per_customer then
+    return jsonb_build_object('ok',false,'message','تم استخدام الكود للعميل ده الحد المسموح');
+  end if;
+
+  v_min := coalesce(nullif(promo->>'minOrder','')::numeric,0);
+  if coalesce(p_subtotal,0) < v_min then
+    return jsonb_build_object('ok',false,'message','الحد الأدنى للطلب للكود هو '||v_min||' جنيه');
+  end if;
+
+  v_type := coalesce(promo->>'type','percent');
+  v_value := coalesce(nullif(promo->>'value','')::numeric,0);
+  if v_type='percent' then
+    v_discount := round(coalesce(p_subtotal,0) * v_value / 100.0);
+  else
+    v_discount := least(coalesce(p_subtotal,0),v_value);
+  end if;
+
+  insert into public.promo_redemptions(code,order_number,customer_phone,subtotal,discount)
+  values(v_code,p_order_number,p_customer_phone,p_subtotal,v_discount);
+
+  promos := jsonb_set(promos, array[idx::text,'used'], to_jsonb(v_used+1), true);
+  if v_max > 0 and v_used+1 >= v_max then
+    promos := jsonb_set(promos, array[idx::text,'enabled'], 'false'::jsonb, true);
+  end if;
+  update public.store_data set data=promos,updated_at=now() where kind='promos';
+
+  return jsonb_build_object('ok',true,'code',v_code,'discount',v_discount,'promoPercent',case when v_type='percent' then v_value else 0 end,'type',v_type,'value',v_value);
+exception when unique_violation then
+  return jsonb_build_object('ok',false,'message','الأوردر أو استخدام الكود اتسجل بالفعل');
+end;
+$$;
+
+grant execute on function public.reserve_promo(text,numeric,text,text) to anon, authenticated;
