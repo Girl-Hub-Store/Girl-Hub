@@ -19,7 +19,35 @@ const activity=(action,detail)=>{let a=read('activity',[]);a.unshift({at:new Dat
 const syncProductsToStore=()=>{try{localStorage.setItem('girlhub_admin_products',JSON.stringify(data.products))}catch{}};
 const api=async(action,payload={})=>{if(!data.backend.url||!data.backend.key)return {ok:false,local:true};try{const r=await fetch(data.backend.url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,adminKey:data.backend.key,...payload})});return await r.json()}catch(e){return {ok:false,error:String(e)}}};
 async function backendGet(action){if(!data.backend.url||!data.backend.key)return null;try{let u=new URL(data.backend.url);u.searchParams.set('action',action);u.searchParams.set('adminKey',data.backend.key);let r=await fetch(u);return await r.json()}catch{return null}}
-function persist(kind){save(kind,data[kind]);const c=sb();if(c){const task=kind==='orders'?c.from('orders').upsert(data.orders.map(o=>({order_number:String(o.order),created_at:o.createdAt||new Date().toISOString(),status:o.status||'جديد',paid:!!o.paid,deleted:!!o.deleted,payload:o})),{onConflict:'order_number'}):c.from('store_data').upsert({kind,data:data[kind],updated_at:new Date().toISOString()},{onConflict:'kind'});task.then(({error})=>{if(error){console.error(error);toast('تعذر الحفظ على Supabase: '+error.message)}else{$('#backendNotice').textContent='متصل بـ Supabase — تم حفظ التغييرات أونلاين.';$('#backendNotice').classList.add('connected')}});return;}if(data.backend.url&&data.backend.key)api('saveData',{kind,value:data[kind]}).then(r=>{if(!r.ok&&!r.local)toast('تعذر المزامنة مع الخلفية؛ التغييرات محفوظة محليًا')});}
+async function persist(kind){
+save(kind,data[kind]);
+const c=sb();
+if(c){
+ try{
+  if(kind==='orders'){
+   for(const o of data.orders){
+    const row={order_data:{...o},status:o.status||'جديد',created_at:o.createdAt||new Date().toISOString()};
+    delete row.order_data.supabaseId;
+    if(o.supabaseId){
+     const {error}=await c.from('orders').update(row).eq('id',Number(o.supabaseId));
+     if(error)throw error;
+    }else{
+     const {data:inserted,error}=await c.from('orders').insert(row).select('id').single();
+     if(error)throw error;
+     if(inserted?.id)o.supabaseId=inserted.id;
+    }
+   }
+   save('orders',data.orders);
+  }else{
+   const {error}=await c.from('store_data').upsert({data_key:kind,data_value:data[kind],updated_at:new Date().toISOString()},{onConflict:'data_key'});
+   if(error)throw error;
+  }
+  $('#backendNotice').textContent='متصل بـ Supabase — تم حفظ التغييرات أونلاين.';
+  $('#backendNotice').classList.add('connected');
+  return;
+ }catch(error){console.error(error);toast('تعذر الحفظ على Supabase: '+error.message);return;}
+}
+if(data.backend.url&&data.backend.key)api('saveData',{kind,value:data[kind]}).then(r=>{if(!r.ok&&!r.local)toast('تعذر المزامنة مع الخلفية؛ التغييرات محفوظة محليًا')});}
 const statusClass=s=>({'جديد':'pink','قيد التجهيز':'orange','تم الشحن':'orange','تم التسليم':'green','ملغي':'red'}[s]||'');
 function normalizeOrder(o,i){return {...o,order:o.order||o.id||`GH-${String(i+1).padStart(5,'0')}`,createdAt:o.createdAt||o.date||new Date().toISOString(),customer:o.customer||{name:o.name||o.customerName,phone:o.phone,governorate:o.governorate,address:o.address,payment:o.payment},total:Number(o.total||0),status:o.status||'جديد',paid:!!o.paid,items:o.items||[],deleted:!!o.deleted};}
 function init(){
@@ -210,21 +238,25 @@ function showApp(){$('#login').hidden=true;$('#app').hidden=false;renderAll();lo
 async function loadRemoteData(){
  const c=sb();
  if(c){
-  const ok=await adminAllowed();if(!ok){$('#backendNotice').textContent='سجّلي الدخول بحساب مضاف إلى قائمة مديري المتجر في Supabase.';return;}
-  const {data:rows,error}=await c.from('store_data').select('kind,data');
+  const ok=await adminAllowed();
+  if(!ok){$('#backendNotice').textContent='سجّلي الدخول بحساب مضاف إلى قائمة مديري المتجر في Supabase.';return;}
+  const {data:rows,error}=await c.from('store_data').select('data_key,data_value');
   if(error){console.error(error);$('#backendNotice').textContent='فشل تحميل بيانات Supabase: '+error.message;return;}
-  const remoteKinds=new Set((rows||[]).map(row=>row.kind));
-  for(const row of rows||[]){if(['products','promos','categories','banners','settings'].includes(row.kind)){data[row.kind]=row.data;save(row.kind,data[row.kind]);}}
-  const initialRows=['products','promos','categories','banners','settings'].filter(kind=>!remoteKinds.has(kind)).map(kind=>({kind,data:data[kind],updated_at:new Date().toISOString()}));
-  if(initialRows.length){const {error:seedError}=await c.from('store_data').upsert(initialRows,{onConflict:'kind'});if(seedError){console.error(seedError);$('#backendNotice').textContent='تعذر تهيئة البيانات في Supabase: '+seedError.message;return;}}
+  const remoteKinds=new Set((rows||[]).map(row=>row.data_key));
+  for(const row of rows||[])if(['products','promos','categories','banners','settings'].includes(row.data_key)){data[row.data_key]=row.data_value;save(row.data_key,data[row.data_key]);}
+  const initialRows=['products','promos','categories','banners','settings'].filter(kind=>!remoteKinds.has(kind)).map(kind=>({data_key:kind,data_value:data[kind],updated_at:new Date().toISOString()}));
+  if(initialRows.length){const {error:seedError}=await c.from('store_data').upsert(initialRows,{onConflict:'data_key'});if(seedError){console.error(seedError);$('#backendNotice').textContent='تعذر تهيئة البيانات في Supabase: '+seedError.message;return;}}
   syncProductsToStore();renderAll();fillSettings();
   $('#backendNotice').textContent='متصل بـ Supabase — التعديلات تُحفظ مركزيًا وتظهر على الأجهزة الأخرى.';$('#backendNotice').classList.add('connected');
   for(const k of ['products','promos','categories','banners','settings'])try{localStorage.setItem('girlhub_remote_'+k,JSON.stringify(data[k]))}catch(_){}
   document.dispatchEvent(new CustomEvent('girlhub:data-updated',{detail:{products:data.products,promos:data.promos,categories:data.categories,banners:data.banners,settings:data.settings}}));
   return;
  }
- const r=await backendGet('getData');if(!r?.ok){$('#backendNotice').textContent='وضع محلي: التعديلات لا تتزامن بين الأجهزة حتى يتم إعداد Supabase.';return;}
- ['products','promos','categories','banners'].forEach(k=>{if(Array.isArray(r[k])&&r[k].length){data[k]=r[k];save(k,data[k]);}});if(r.settings&&typeof r.settings==='object'&&Object.keys(r.settings).length){data.settings=r.settings;save('settings',data.settings);}syncProductsToStore();renderAll();fillSettings();$('#backendNotice').textContent='متصل بالخلفية القديمة.';$('#backendNotice').classList.add('connected');
+ const r=await backendGet('getData');
+ if(!r?.ok){$('#backendNotice').textContent='وضع محلي: التعديلات لا تتزامن بين الأجهزة حتى يتم إعداد Supabase.';return;}
+ ['products','promos','categories','banners'].forEach(k=>{if(Array.isArray(r[k])&&r[k].length){data[k]=r[k];save(k,data[k]);}});
+ if(r.settings&&typeof r.settings==='object'&&Object.keys(r.settings).length){data.settings=r.settings;save('settings',data.settings);}
+ syncProductsToStore();renderAll();fillSettings();$('#backendNotice').textContent='متصل بالخلفية القديمة.';$('#backendNotice').classList.add('connected');
 }
 function openTab(tab){$$('.panel').forEach(p=>p.classList.toggle('active',p.id==='tab-'+tab));$$('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));let titles={overview:'نظرة عامة',orders:'إدارة الأوردرات',products:'المنتجات والمخزون',categories:'الأقسام والصفحات',promos:'الخصومات والأكواد',hero:'الهيرو والبنرات',settings:'إعدادات المتجر'};$('#pageTitle').textContent=titles[tab]||'لوحة التحكم';if(tab==='orders')renderOrders();if(tab==='products')renderProducts()}
 function renderAll(){renderOverview();renderOrders();renderProducts();renderCategories();renderPromos();renderBanners();fillSettings()}
@@ -246,7 +278,18 @@ $('#ordersRows').querySelectorAll('[data-paid]').forEach(b=>b.onclick=()=>{let o
 $('#ordersRows').querySelectorAll('[data-delete-order]').forEach(b=>b.onclick=()=>{let o=data.orders.find(o=>o.order===b.dataset.deleteOrder);if(o&&confirm(`متأكدة إنك عايزة تحذفي الأوردر ${o.order}؟ الأفضل تصدير نسخة قبل الحذف.`)){o.deleted=true;persist('orders');activity('حذف أوردر',o.order);renderOrders();renderOverview();toast('تم حذف الأوردر من العرض')}});
 $('#ordersRows').querySelectorAll('[data-details]').forEach(b=>b.onclick=()=>orderDetails(b.dataset.details));
 }
-async function loadOrders(){const c=sb();if(c){const {data:rows,error}=await c.from('orders').select('order_number,created_at,status,paid,deleted,payload').order('created_at',{ascending:false});if(error){console.error(error);$('#backendNotice').textContent='تعذر تحميل الطلبات من Supabase: '+error.message;}else if(rows&&rows.length){data.orders=rows.map(r=>normalizeOrder({...r.payload,order:r.order_number,createdAt:r.created_at,status:r.status,paid:r.paid,deleted:r.deleted}));save('orders',data.orders);}renderOrders();renderOverview();return;}let r=await backendGet('getOrders');if(r?.ok&&Array.isArray(r.orders)){data.orders=r.orders.map(normalizeOrder);save('orders',data.orders);$('#backendNotice').textContent='متصل بالخلفية المركزية. بيانات الأوردرات تُقرأ من Google Sheets.';$('#backendNotice').classList.add('connected')}renderOrders();renderOverview()}
+async function loadOrders(){
+ const c=sb();
+ if(c){
+  const {data:rows,error}=await c.from('orders').select('id,order_data,status,created_at').order('created_at',{ascending:false});
+  if(error){console.error(error);$('#backendNotice').textContent='تعذر تحميل الطلبات من Supabase: '+error.message;}
+  else{data.orders=(rows||[]).map((r,i)=>normalizeOrder({...((r.order_data)||{}),supabaseId:r.id,order:(r.order_data||{}).order||`GH-${String(i+1).padStart(5,'0')}`,createdAt:r.created_at,status:r.status||r.order_data?.status||'جديد'},i));save('orders',data.orders);}
+  renderOrders();renderOverview();return;
+ }
+ let r=await backendGet('getOrders');
+ if(r?.ok&&Array.isArray(r.orders)){data.orders=r.orders.map(normalizeOrder);save('orders',data.orders);$('#backendNotice').textContent='متصل بالخلفية المركزية. بيانات الأوردرات تُقرأ من Google Sheets.';$('#backendNotice').classList.add('connected');}
+ renderOrders();renderOverview();
+}
 function orderDetails(id){let o=data.orders.find(o=>o.order===id);if(!o)return;let c=o.customer||{};modal(`تفاصيل الأوردر ${esc(o.order)}`,`<div class="modal-form"><label>اسم العميل<input readonly value="${esc(c.name||'—')}"></label><label>الهاتف<input readonly value="${esc(c.phone||'—')}"></label><label>المحافظة<input readonly value="${esc(c.governorate||'—')}"></label><label>طريقة الدفع<input readonly value="${esc(c.payment||'—')}"></label><label class="full">العنوان<textarea readonly>${esc(c.address||'—')}</textarea></label><div class="full"><b>المنتجات</b><p>${(o.items||[]).map(i=>`${esc(i.name||i.title||'منتج')} × ${Number(i.qty||1)} — ${esc(i.size||'')} ${esc(i.colorName||'')}`).join('<br>')||esc(o.itemText||'تفاصيل المنتجات غير متاحة في البيانات القديمة')}</p><b>الإجمالي: ${money(o.total)}</b></div></div><div class="modal-actions"><button class="btn light" data-close>إغلاق</button><button class="btn" id="detailPaid">${o.paid?'إلغاء علامة مدفوع':'تحديد كمدفوع'}</button></div>`);
 $('#detailPaid').onclick=()=>{o.paid=!o.paid;persist('orders');renderOrders();renderOverview();closeModal();toast('تم تحديث الدفع')}}
 function exportOrders(){let list=data.orders.filter(o=>!o.deleted),cols=['Order','Date','Customer','Phone','Governorate','Address','Payment','Status','Paid','Total','Items'];let rows=list.map(o=>[o.order,o.createdAt,o.customer?.name,o.customer?.phone,o.customer?.governorate,o.customer?.address,o.customer?.payment,o.status,o.paid?'Yes':'No',o.total,(o.items||[]).map(i=>`${i.name} x${i.qty}`).join(' | ')]);let csv=[cols,...rows].map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');download(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}),'girl-hub-orders.csv');}
