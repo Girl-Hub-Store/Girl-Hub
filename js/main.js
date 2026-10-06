@@ -83,7 +83,7 @@ function initDiscountSlider(){
  if(grid.dataset.sliderReady==='1'){refreshDiscountSliderLanguage(grid,items);return}
  grid.dataset.sliderReady='1';
  grid.innerHTML=[...items,...items].map(p=>`<article class="figma-product-card"><a href="product.html?id=${p.id}" class="product-image"><img src="${p.img}" alt="${productName(p)}"><span class="discount-badge">${Math.round((1-p.price/p.old)*100)}% ${getLang()==='en'?'OFF':'خصم'}</span></a><div class="product-name">${productName(p)}</div><div class="product-price"><strong>${money(p.price)}</strong><del>${money(p.old)}</del></div></article>`).join('');
- let index=0,timer,dragging=false,startX=0,startY=0,startTranslate=0,lastX=0,moved=false;
+ let index=0,timer,dragging=false,startX=0,startY=0,startTranslate=0,lastX=0,suppressClick=false;
  const getVisible=()=>window.innerWidth<=600?2:window.innerWidth<=900?2:4;
  const step=()=>{const first=grid.querySelector('.figma-product-card');if(!first)return 0;return first.getBoundingClientRect().width+(parseFloat(getComputedStyle(grid).gap)||0)};
  const render=(animate=true,px=null)=>{grid.style.transition=animate?'transform .72s cubic-bezier(.16,1,.3,1)':'none';grid.style.transform=`translate3d(${px!==null?px:-index*step()}px,0,0)`};
@@ -97,10 +97,10 @@ function initDiscountSlider(){
  // Touch / mouse / trackpad swipe — dragging the products feels like a native mobile carousel.
  grid.style.touchAction='pan-y';
  const pointerDown=e=>{if(e.pointerType==='mouse'&&e.button!==0)return;clearInterval(timer);dragging=true;moved=false;startX=e.clientX;startY=e.clientY;lastX=e.clientX;startTranslate=-index*step();grid.classList.add('is-dragging');grid.style.transition='none';clearInterval(timer)};
- const pointerMove=e=>{if(!dragging)return;const dx=e.clientX-startX,dy=e.clientY-startY;if(Math.abs(dy)>Math.abs(dx)+8){dragging=false;grid.classList.remove('is-dragging');return}lastX=e.clientX;if(Math.abs(dx)>6)moved=true;const resistance=0.78;let px=startTranslate+dx*resistance;const max=-Math.max(0,items.length-1)*step();if(px>35)px=35+(px-35)*.25;if(px<max-35)px=max-35+(px-(max-35))*.25;render(false,px)};
- const pointerUp=()=>{if(!dragging)return;dragging=false;grid.classList.remove('is-dragging');const dx=lastX-startX;const threshold=Math.min(75,Math.max(42,step()*.18));if(Math.abs(dx)>threshold){if(dx<0)moveNext();else movePrev()}else render(true);setTimeout(restart,900)};
+ const pointerMove=e=>{if(!dragging)return;const dx=e.clientX-startX,dy=e.clientY-startY;if(Math.abs(dy)>Math.abs(dx)+8){dragging=false;grid.classList.remove('is-dragging');return}lastX=e.clientX;const resistance=0.78;let px=startTranslate+dx*resistance;const max=-Math.max(0,items.length-1)*step();if(px>35)px=35+(px-35)*.25;if(px<max-35)px=max-35+(px-(max-35))*.25;render(false,px)};
+ const pointerUp=()=>{if(!dragging)return;dragging=false;grid.classList.remove('is-dragging');const dx=lastX-startX;const threshold=Math.min(75,Math.max(42,step()*.18));suppressClick=Math.abs(dx)>threshold;if(suppressClick)setTimeout(()=>{suppressClick=false},80);if(suppressClick){if(dx<0)moveNext();else movePrev()}else render(true);setTimeout(restart,900)};
  grid.addEventListener('pointerdown',pointerDown,{passive:true});grid.addEventListener('pointermove',pointerMove,{passive:true});grid.addEventListener('pointerup',pointerUp,{passive:true});grid.addEventListener('pointercancel',pointerUp,{passive:true});document.addEventListener('visibilitychange',()=>{if(document.hidden)clearInterval(timer);else restart()});grid.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'&&dragging)pointerUp()});
- grid.addEventListener('click',e=>{if(moved){e.preventDefault();e.stopPropagation();moved=false}},{capture:true});
+ grid.addEventListener('click',e=>{if(suppressClick){e.preventDefault();e.stopPropagation();suppressClick=false}},{capture:true});
  window.addEventListener('resize',()=>render(false));
  render(false);restart();
  const observer=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible')}),{threshold:.1});
@@ -133,8 +133,8 @@ let PROMO_CODES=[
 function getAppliedPromo(){try{return JSON.parse(sessionStorage.getItem('girlhub_applied_promo')||'null')}catch{return null}}
 function getStoreSettings(){try{const s=JSON.parse(localStorage.getItem('girlhub_remote_settings')||'null')||{};return {shipping:50,shippingByGovernorate:{},orderDiscountEnabled:false,orderDiscountMin:0,orderDiscountPercent:0,paymentMethods:[{value:'الدفع عند الاستلام',label:'الدفع عند الاستلام',enabled:true},{value:'كاش',label:'كاش',enabled:true},{value:'انستا باي',label:'انستا باي',enabled:true}],categoryTiles:[],...s}}catch{return {shipping:50,shippingByGovernorate:{},orderDiscountEnabled:false,orderDiscountMin:0,orderDiscountPercent:0,paymentMethods:[{value:'الدفع عند الاستلام',label:'الدفع عند الاستلام',enabled:true},{value:'كاش',label:'كاش',enabled:true},{value:'انستا باي',label:'انستا باي',enabled:true}],categoryTiles:[]}}}
 function getShippingForGovernorate(gov){const s=getStoreSettings();const map=s.shippingByGovernorate||{};return Number(map[gov]!==undefined?map[gov]:s.shipping||0)}
-function checkoutAmounts(){const valid=getCart().filter(i=>getProduct(i.id));const subtotal=valid.reduce((s,i)=>s+getProduct(i.id).price*i.qty,0);const shipping=valid.length?getShippingForGovernorate($('#governorate')?.value||''):0;const settings=getStoreSettings();const autoEnabled=settings.orderDiscountEnabled===true;const autoMin=Number(settings.orderDiscountMin||0);const autoPercent=Number(settings.orderDiscountPercent||0);const autoDiscount=autoEnabled&&autoMin>0&&subtotal>=autoMin?Math.round(subtotal*autoPercent/100):0;const promo=getAppliedPromo();let promoDiscount=0,promoPercent=0;if(promo){const def=PROMO_CODES.find(x=>x.code===promo.code);if(def){promoPercent=def.type==='percent'?Number(def.value):0;promoDiscount=def.type==='percent'?Math.round(subtotal*def.value/100):Math.min(subtotal,def.value)}}const discount=Math.min(subtotal,autoDiscount+promoDiscount);return {valid,subtotal,shipping,discount,promoDiscount,autoDiscount,promoPercent,total:Math.max(0,subtotal+shipping-discount)}}
-function updateCheckoutTotal(){const a=checkoutAmounts();if($('.checkout-total'))$('.checkout-total').textContent=money(a.total);const sh=$('#shippingValue');if(sh)sh.textContent=a.shipping?money(a.shipping):(getLang()==='en'?'Select governorate':'اختاري المحافظة');const d=$('#promoDiscount');if(d)d.textContent=money(a.discount);const auto=$('#autoDiscount');if(auto)auto.textContent=a.autoDiscount?money(a.autoDiscount):money(0);const msg=$('#promoMessage');if(msg&&getAppliedPromo())msg.textContent=getLang()==='en'?`Code ${getAppliedPromo().code} applied`:`تم تفعيل كود ${getAppliedPromo().code}`;}
+function checkoutAmounts(){const valid=getCart().filter(i=>getProduct(i.id));const subtotal=valid.reduce((s,i)=>s+getProduct(i.id).price*i.qty,0);const shipping=valid.length?getShippingForGovernorate($('#governorate')?.value||''):0;const settings=getStoreSettings();const autoEnabled=settings.orderDiscountEnabled===true || settings.orderDiscountEnabled==='true' || settings.orderDiscountEnabled===1;const autoMin=Number(settings.orderDiscountMin||0);const autoPercent=Number(settings.orderDiscountPercent||0);const autoDiscount=autoEnabled&&autoMin>0&&subtotal>=autoMin?Math.round(subtotal*autoPercent/100):0;const promo=getAppliedPromo();let promoDiscount=0,promoPercent=0;if(promo){const def=PROMO_CODES.find(x=>x.code===promo.code);if(def){promoPercent=def.type==='percent'?Number(def.value):0;promoDiscount=def.type==='percent'?Math.round(subtotal*def.value/100):Math.min(subtotal,def.value)}}const discount=Math.min(subtotal,autoDiscount+promoDiscount);return {valid,subtotal,shipping,discount,promoDiscount,autoDiscount,promoPercent,total:Math.max(0,subtotal+shipping-discount)}}
+function updateCheckoutTotal(){const a=checkoutAmounts();if($('.checkout-total'))$('.checkout-total').textContent=money(a.total);const sh=$('#shippingValue');if(sh)sh.textContent=a.shipping?money(a.shipping):(getLang()==='en'?'Select governorate':'اختاري المحافظة');const d=$('#promoDiscount');if(d)d.textContent=money(a.promoDiscount);const auto=$('#autoDiscount');if(auto)auto.textContent=a.autoDiscount?money(a.autoDiscount):money(0);const msg=$('#promoMessage');if(msg&&getAppliedPromo())msg.textContent=getLang()==='en'?`Code ${getAppliedPromo().code} applied`:`تم تفعيل كود ${getAppliedPromo().code}`;}
 async function reservePromo(applied,subtotal,phone,orderNumber){
  if(!applied?.code)return {ok:true,discount:0,promoPercent:0};
  if(!window.GH_SUPABASE_READY||!window.GH_SB)return {ok:false,message:'لازم ربط Supabase عشان استخدام الأكواد يتسجل مركزيًا.'};
@@ -227,13 +227,30 @@ function renderHero(banners){
 
 
 function renderManagedCategoryTiles(){
- const settings=getStoreSettings(); const tiles=Array.isArray(settings.categoryTiles)?settings.categoryTiles:[];
+ const settings=getStoreSettings();
+ let tiles=Array.isArray(settings.categoryTiles)?settings.categoryTiles:[];
  if(!tiles.length)return;
- const grid=$('.accessories-grid'); if(!grid)return;
- grid.innerHTML=tiles.filter(x=>x.enabled!==false).map(x=>`<a class="accessory-feature" href="category.html?cat=${encodeURIComponent(x.type||x.id)}" data-category-type="${esc(x.type||x.id)}"><img src="${esc(x.img||'assets/images/necklace.jpg')}" alt="${esc(x.name||'قسم')}"><span class="accessory-shade"></span><span class="accessory-copy"><strong>${esc(x.name||'قسم')}</strong><small>${esc(x.subtitle||'اكتشفي المجموعة')}</small></span><b class="accessory-btn">${esc(x.button||'تصفح المزيد ←')}</b></a>`).join('');
+ tiles=tiles.map(x=>({...x,group:x.group||(String(x.type||x.id).match(/^(shirts|dresses|pants)$/i)?'clothes':'accessories')}));
+ const accessoryGrid=document.querySelector('.accessories-grid');
+ if(accessoryGrid){
+   accessoryGrid.querySelectorAll('.accessory-feature').forEach(card=>{
+     const type=card.dataset.categoryType||new URL(card.href,location.href).searchParams.get('cat')||'';
+     const tile=tiles.find(x=>String(x.type||x.id)===String(type));
+     if(tile)card.style.display=tile.enabled===false?'none':'';
+   });
+   const visible=tiles.filter(x=>x.group==='accessories'&&x.enabled!==false);
+   if(visible.length && accessoryGrid.children.length===0){
+     accessoryGrid.innerHTML=visible.map(x=>`<a class="accessory-feature" href="category.html?cat=${encodeURIComponent(x.type||x.id)}" data-category-type="${esc(x.type||x.id)}"><img src="${esc(x.img||'assets/images/necklace.jpg')}" alt="${esc(x.name||'قسم')}"><span class="accessory-shade"></span><span class="accessory-copy"><strong>${esc(x.name||'قسم')}</strong><small>${esc(x.subtitle||'اكتشفي المجموعة')}</small></span><b class="accessory-btn">تصفح المزيد ←</b></a>`).join('');
+   }
+ }
+ document.querySelectorAll('.clothes-category').forEach(section=>{
+   const link=section.querySelector('.clothes-category-head a');
+   const cat=link?new URL(link.href,location.href).searchParams.get('cat'):'';
+   const tile=tiles.find(x=>String(x.type||x.id)===String(cat));
+   if(tile)section.style.display=tile.enabled===false?'none':'';
+ });
  applyClosedCategoryPresentation();
 }
-
 function applyRemoteStoreContent(detail){
  const d=detail||{};
  if(Array.isArray(d.promos)){PROMO_CODES=d.promos.filter(p=>p.enabled!==false).map(p=>({code:p.code,type:p.type,value:Number(p.value),expiresAt:(p.expiresAt||'')+'T23:59:59',startsAt:p.startsAt,maxUses:Number(p.maxUses||0),used:Number(p.used||0),enabled:p.enabled!==false,minOrder:Number(p.minOrder||0),perCustomer:Number(p.perCustomer||1),promoPercent:p.type==='percent'?Number(p.value):0}));}
