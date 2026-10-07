@@ -50,12 +50,7 @@ function currentPageOwnsClosedCategory(p){
   return false;
  });
 }
-function productAllowedInCurrentContext(p){
- if(!p||p.visible===false)return false;
- const path=location.pathname.toLowerCase();
- const categoryPage=path.endsWith('/clothes.html')||path.endsWith('/accessories.html')||path.endsWith('/category.html');
- return !categoryPage || !isCategoryClosedForProduct(p) || currentPageOwnsClosedCategory(p);
-}
+function productAllowedInCurrentContext(p){return p&&p.visible!==false && (!isCategoryClosedForProduct(p)||currentPageOwnsClosedCategory(p));}
 function closedCategoryForCurrentPage(){
  const cats=getManagedCategories().filter(c=>c.enabled===false), path=location.pathname.toLowerCase();
  if(path.endsWith('clothes.html')) return cats.find(c=>String(c.type).toLowerCase()==='clothes'||String(c.id).toLowerCase()==='clothes');
