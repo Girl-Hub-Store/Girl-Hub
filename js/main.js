@@ -50,7 +50,12 @@ function currentPageOwnsClosedCategory(p){
   return false;
  });
 }
-function productAllowedInCurrentContext(p){return p.visible!==false && (!isCategoryClosedForProduct(p)||currentPageOwnsClosedCategory(p));}
+function productAllowedInCurrentContext(p){
+ if(!p||p.visible===false)return false;
+ const path=location.pathname.toLowerCase();
+ const categoryPage=path.endsWith('/clothes.html')||path.endsWith('/accessories.html')||path.endsWith('/category.html');
+ return !categoryPage || !isCategoryClosedForProduct(p) || currentPageOwnsClosedCategory(p);
+}
 function closedCategoryForCurrentPage(){
  const cats=getManagedCategories().filter(c=>c.enabled===false), path=location.pathname.toLowerCase();
  if(path.endsWith('clothes.html')) return cats.find(c=>String(c.type).toLowerCase()==='clothes'||String(c.id).toLowerCase()==='clothes');
@@ -152,7 +157,7 @@ async function sendOrderToSupabase(order){
      throw error;
    }
    if(!data?.ok)return {ok:false,message:data?.message||'المخزون غير متاح بالكمية المطلوبة'};
-   if(Array.isArray(data.products)&&typeof PRODUCTS!=='undefined'){
+   if(Array.isArray(data.products)&&data.products.length&&typeof PRODUCTS!=='undefined'){
      PRODUCTS.splice(0,PRODUCTS.length,...data.products);
      try{localStorage.setItem('girlhub_admin_products',JSON.stringify(data.products));localStorage.setItem('girlhub_remote_products',JSON.stringify(data.products));}catch(_){}
      document.dispatchEvent(new CustomEvent('girlhub:data-updated',{detail:{products:data.products}}));

@@ -12,7 +12,7 @@
    if(value!==null){hasLocal=true;detail[kind]=value;try{localStorage.setItem(keys[1],JSON.stringify(value))}catch(_){}}
   });
   const products=detail.products;
-  if(Array.isArray(products)&&typeof PRODUCTS!=='undefined'){
+  if(Array.isArray(products)&&products.length&&typeof PRODUCTS!=='undefined'){
    PRODUCTS.splice(0,PRODUCTS.length,...products);
   }
   if(Object.keys(detail).length){document.dispatchEvent(new CustomEvent('girlhub:data-updated',{detail}));}
