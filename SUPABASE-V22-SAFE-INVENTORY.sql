@@ -280,7 +280,7 @@ begin
     end if;
 
     if jsonb_typeof(product->'stockBySize')='object'
-       and jsonb_array_length(jsonb_object_keys(product->'stockBySize')::jsonb) >= 0
+       and product->'stockBySize' <> '{}'::jsonb
        and item_size<>'' then
       stock_size := greatest(coalesce(nullif(product->'stockBySize'->>item_size,'')::numeric,0),0);
       if stock_size < qty then
