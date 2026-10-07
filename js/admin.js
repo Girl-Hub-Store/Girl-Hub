@@ -109,8 +109,30 @@ const tileById=new Map(data.settings.categoryTiles.map(x=>[x.id,x]));
 defaultCategoryTiles.forEach(def=>{if(!tileById.has(def.id))data.settings.categoryTiles.push({...def});});
 data.settings.categoryTiles=data.settings.categoryTiles.map(x=>({...x,group:x.group||(String(x.type||x.id).match(/^(shirts|dresses|pants)$/i)?'clothes':'accessories')}));
 data.settings.paymentMethods=Array.isArray(data.settings.paymentMethods)&&data.settings.paymentMethods.length?data.settings.paymentMethods:defaultPaymentMethods;data.backend=read('backend',{url:'',key:''});
-$('#backendUrl').value=data.backend.url||'';$('#backendKey').value=data.backend.key||'';if(sb()){$('#loginHint').textContent='استخدمي البريد وكلمة المرور لحساب مضاف إلى قائمة مديري المتجر في Supabase.';$('#adminEmail').required=true;}else{$('#loginHint').textContent='للتجربة المحلية فقط: GH-admin-2026. لا ترفعي الموقع قبل إعداد Supabase.';}
-const logged=localStorage.getItem('gh_admin_session')==='supabase'||sessionStorage.getItem('gh_admin_session')==='yes'||sessionStorage.getItem('gh_admin_session')==='supabase';if(logged){if(sb())adminAllowed().then(ok=>ok?showApp():(localStorage.removeItem('gh_admin_session'),sessionStorage.removeItem('gh_admin_session'),$('#login').hidden=false));else showApp();}if(sb()){sb().auth.getSession().then(({data})=>{if(data?.session?.user)adminAllowed().then(ok=>{if(ok){localStorage.setItem('gh_admin_session','supabase');sessionStorage.setItem('gh_admin_session','supabase');showApp();}})});sb().auth.onAuthStateChange((_event,session)=>{if(session?.user)adminAllowed().then(ok=>{if(ok)showApp()});});}
+$('#backendUrl').value=data.backend.url||'';$('#backendKey').value=data.backend.key||'';if(sb()){$('#loginHint').textContent='استخدمي البريد وكلمة المرور لحساب مضاف إلى قائمة مديري المتجر في Supabase.';$('#adminEmail').required=true;}else{$('#loginHint').textContent='Supabase غير متصل. افتحي الصفحة بعد إعداد الاتصال.';}
+// Auth bootstrap: the login screen is NOT the dashboard. It stays hidden while the saved
+// Supabase session is being restored, and is shown only when there is no valid admin session.
+function showLogin(){$('#login').hidden=false;$('#app').hidden=true;}
+async function bootstrapAuth(){
+  $('#login').hidden=true;$('#app').hidden=true;
+  const c=sb();
+  if(!c){showLogin();return;}
+  try{
+    const {data,error}=await c.auth.getSession();
+    if(error)throw error;
+    if(data?.session?.user){
+      const ok=await adminAllowed();
+      if(ok){showApp();return;}
+      await c.auth.signOut();
+    }
+  }catch(err){console.warn('Admin session restore failed:',err);}
+  showLogin();
+  c.auth.onAuthStateChange((_event,session)=>{
+    if(session?.user){
+      setTimeout(()=>adminAllowed().then(ok=>{if(ok)showApp();else showLogin();}).catch(()=>showLogin()),0);
+    }else{showLogin();}
+  });
+}
 $('#loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
 
@@ -168,9 +190,6 @@ $('#loginForm').addEventListener('submit',async e=>{
     }
 
     // حفظ حالة الدخول فقط، وليس كلمة المرور
-    sessionStorage.setItem('gh_admin_session','supabase');
-    localStorage.setItem('gh_admin_session','supabase');
-
     $('#loginError').textContent='';
 
     showApp();
@@ -183,7 +202,7 @@ $('#loginForm').addEventListener('submit',async e=>{
       err?.message || 'تعذر تسجيل الدخول.';
   }
 });
-$('#logoutBtn').onclick=async()=>{sessionStorage.removeItem('gh_admin_session');localStorage.removeItem('gh_admin_session');if(sb())await sb().auth.signOut();location.reload()};
+$('#logoutBtn').onclick=async()=>{if(sb())await sb().auth.signOut();showLogin()};
 $('#nav').addEventListener('click',e=>{let b=e.target.closest('[data-tab]');if(b)openTab(b.dataset.tab)});
 $$('[data-goto]').forEach(b=>b.addEventListener('click',()=>openTab(b.dataset.goto)));
 $('#refreshBtn').onclick=()=>refreshAll();$('#reloadOrders').onclick=loadOrders;$('#orderSearch').oninput=renderOrders;['dateFrom','dateTo','govFilter','statusFilter'].forEach(id=>$('#'+id).addEventListener('change',renderOrders));$('#clearFilters').onclick=()=>{['orderSearch','dateFrom','dateTo','govFilter','statusFilter'].forEach(id=>$('#'+id).value='');renderOrders()};
@@ -403,5 +422,5 @@ function closeModal(){$('#modalRoot').innerHTML=''}
 function download(blob,name){let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function backup(){let payload={version:1,exportedAt:new Date().toISOString(),products:data.products,orders:data.orders,promos:data.promos,categories:data.categories,banners:data.banners,settings:data.settings,activity:read('activity',[])};download(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),'girl-hub-backup.json');toast('تم تجهيز النسخة الاحتياطية')}
 function restore(e){let file=e.target.files?.[0];if(!file)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);['products','orders','promos','categories','banners','settings'].forEach(k=>{if(x[k]!==undefined){data[k]=x[k];save(k,data[k]);if(sb())persist(k)}});syncProductsToStore();renderAll();toast('تم استيراد النسخة الاحتياطية')}catch{toast('ملف النسخة الاحتياطية غير صالح')}};r.readAsText(file);e.target.value=''}
-document.addEventListener('DOMContentLoaded',init);
+document.addEventListener('DOMContentLoaded',()=>{init();bootstrapAuth();});
 })();
