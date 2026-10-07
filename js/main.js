@@ -18,9 +18,10 @@ function refreshBadges(){$$('.cart-count').forEach(e=>e.textContent=cartCount())
 function toast(msg){const t=$('.toast');if(!t)return;t.textContent=msg;t.classList.add('show');clearTimeout(window.__toast);window.__toast=setTimeout(()=>t.classList.remove('show'),1800)}
 function productName(p){return getLang()==='en'?(p.nameEn||PRODUCT_EN[p.id]||p.name):p.name}
 function addToCart(id,qty=1,size='M',color='0',colorName='Pink'){
- const c=getCart(),p=getProduct(id);if(!p||!p.available){toast(tr('notAvailable'));return}
- const key=variantKey(id,size,color),x=c.find(i=>i.key===key);
- if(x)x.qty+=qty;else c.push({key,id:Number(id),qty:Number(qty),size:size||'M',color:color||'0',colorName:colorName||'Pink'});
+ const c=getCart(),p=getProduct(id);if(!p||!p.available||Number(p.stock||0)<=0){toast(Number(p?.stock||0)<=0?tr('notAvailable'):tr('notAvailable'));return}
+ const key=variantKey(id,size,color),x=c.find(i=>i.key===key),current=x?Number(x.qty||0):0,max=Number(p.stock||0);
+ if(current+Number(qty)>max){toast(getLang()==='en'?`Only ${max} left in stock`:`المتاح في المخزون ${max} قطعة بس`);return false}
+ if(x)x.qty+=Number(qty);else c.push({key,id:Number(id),qty:Number(qty),size:size||'M',color:color||'0',colorName:colorName||'Pink'});
  saveCart(c);refreshBadges();toast(tr('added'));return true;
 }
 function toggleWish(id,sourceEl){let w=getWish(),adding=!w.includes(Number(id));w=adding?[...w,Number(id)]:w.filter(x=>x!==Number(id));saveWish(w);refreshBadges();if(adding&&sourceEl){const card=sourceEl.closest('[data-product-card],.figma-product-card,.related-card,.detail-image-wrap');if(card){card.classList.remove('wish-pop');void card.offsetWidth;card.classList.add('wish-pop');const pop=document.createElement('span');pop.className='wish-pop-heart';pop.textContent='♥';card.appendChild(pop);setTimeout(()=>pop.remove(),900)}}renderCards();renderWishlist();toast(adding?tr('fav'):tr('removed'))}
@@ -74,13 +75,13 @@ function cartColorName(i){if(i.colorName)return i.colorName;return getLang()==='
 function renderCart(){const box=$('.cart-list');if(!box)return;const c=getCart();if(!c.length){box.innerHTML=`<div class="empty"><div class="emoji">🛍️</div><h2>${tr('noCart')}</h2><p>${tr('emptyCart')}</p><a class="btn" href="home.html">${tr('shop')}</a></div>`;$('.cart-layout .summary')?.remove();return}
  box.innerHTML=c.map(i=>{const p=getProduct(i.id);if(!p)return '';return `<div class="cart-row"><img src="${p.img}" ${imageStyle(p)} alt="${productName(p)}"><div><h3>${productName(p)}</h3><small>${tr('size')}: <strong>${i.size||'M'}</strong> · ${tr('color')}: <strong>${cartColorName(i)}</strong><br>${money(p.price)}</small></div><div class="qty"><button data-dec="${i.key}">−</button><span>${i.qty}</span><button data-inc="${i.key}">+</button></div><strong class="row-price">${money(p.price*i.qty)}</strong><button class="iconbtn" data-remove="${i.key}">×</button></div>`}).join('');
  const total=c.reduce((s,i)=>{const p=getProduct(i.id);return s+(p?p.price*i.qty:0)},0);if($('.subtotal'))$('.subtotal').textContent=money(total);if($('.total'))$('.total').textContent=money(total+50);applyLanguage();}
-function discountItems(){const managed=PRODUCTS.filter(p=>productAllowedInCurrentContext(p)&&p.offer===true&&p.old&&p.old>p.price);const fallback=PRODUCTS.filter(p=>productAllowedInCurrentContext(p)&&p.offer!==false&&p.old&&p.old>p.price);return (managed.length?managed:fallback).sort((a,b)=>((b.old-b.price)/b.old)-((a.old-a.price)/a.old)).slice(0,12)}
+function discountItems(){return PRODUCTS.filter(p=>productAllowedInCurrentContext(p)&&p.offer===true&&p.old&&p.old>p.price).sort((a,b)=>((b.old-b.price)/b.old)-((a.old-a.price)/a.old)).slice(0,12)}
 function normalizeProductColors(colors){if(Array.isArray(colors)&&colors.length)return colors.map((c,i)=>typeof c==='string'?{name:c,hex:['#e8a2b8','#ead7ae','#111111','#5b4038','#ffffff'][i%5]}:{name:c.name||c.label||`لون ${i+1}`,hex:c.hex||c.color||'#e8a2b8'});if(typeof colors==='string')return colors.split(',').map((x,i)=>({name:x.trim(),hex:['#e8a2b8','#ead7ae','#111111','#5b4038','#ffffff'][i%5]})).filter(x=>x.name);return [{name:'وردي',hex:'#e8a2b8'},{name:'بيج',hex:'#ead7ae'},{name:'أسود',hex:'#111111'}]}
 function initDiscountSlider(){
  const grid=$('#discountGrid');
  if(!grid)return;
  const items=discountItems();
- if(!items.length)return;
+ if(!items.length){grid.innerHTML='';grid.dataset.sliderReady='0';return;}
  if(grid.dataset.sliderReady==='1'){refreshDiscountSliderLanguage(grid,items);return}
  grid.dataset.sliderReady='1';
  grid.innerHTML=[...items,...items].map(p=>`<article class="figma-product-card"><a href="product.html?id=${p.id}" class="product-image"><img src="${p.img}" ${imageStyle(p)} alt="${productName(p)}"><span class="discount-badge">${Math.round((1-p.price/p.old)*100)}% ${getLang()==='en'?'OFF':'خصم'}</span></a><div class="product-name">${productName(p)}</div><div class="product-price"><strong>${money(p.price)}</strong><del>${money(p.old)}</del></div></article>`).join('');
@@ -102,7 +103,16 @@ function initDiscountSlider(){
  const pointerUp=()=>{if(!dragging)return;dragging=false;grid.classList.remove('is-dragging');const dx=lastX-startX;const threshold=Math.min(75,Math.max(42,step()*.18));suppressClick=Math.abs(dx)>threshold;if(suppressClick){window.__discountDraggedUntil=Date.now()+180;if(dx<0)moveNext();else movePrev()}else render(true);setTimeout(restart,900)};
  grid.addEventListener('pointerdown',pointerDown,{passive:true});grid.addEventListener('pointermove',pointerMove,{passive:true});grid.addEventListener('pointerup',pointerUp,{passive:true});grid.addEventListener('pointercancel',pointerUp,{passive:true});document.addEventListener('visibilitychange',()=>{if(document.hidden)clearInterval(timer);else restart()});grid.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'&&dragging)pointerUp()});
  // Let normal anchor clicks navigate. Only cancel the click that follows an actual swipe.
- grid.addEventListener('click',e=>{if(window.__discountDraggedUntil&&Date.now()<window.__discountDraggedUntil){e.preventDefault();e.stopPropagation();window.__discountDraggedUntil=0;}},false);
+ grid.addEventListener('click',e=>{
+   if(window.__discountDraggedUntil&&Date.now()<window.__discountDraggedUntil){e.preventDefault();e.stopPropagation();window.__discountDraggedUntil=0;return;}
+   const card=e.target.closest('.figma-product-card');
+   const link=e.target.closest('a[href^="product.html?id="]');
+   if(card&&link){
+     e.preventDefault();
+     e.stopPropagation();
+     window.location.assign(link.href);
+   }
+ },false);
  window.addEventListener('resize',()=>render(false));
  render(false);restart();
  const observer=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible')}),{threshold:.1});
@@ -114,7 +124,7 @@ function initHeader(){refreshBadges();document.addEventListener('click',e=>{
  const a=e.target.closest('[data-add]');if(a){e.preventDefault();e.stopPropagation();addToCart(Number(a.dataset.add));return}
  const w=e.target.closest('[data-wish]');if(w){e.preventDefault();e.stopPropagation();toggleWish(Number(w.dataset.wish),w);return}
  const r=e.target.closest('[data-remove]');if(r){const key=r.dataset.remove;saveCart(getCart().filter(x=>x.key!==key));renderCart();refreshBadges();return}
- const inc=e.target.closest('[data-inc]');if(inc){const c=getCart(),x=c.find(x=>x.key===inc.dataset.inc);if(x){x.qty++;saveCart(c);renderCart();refreshBadges()}return}
+ const inc=e.target.closest('[data-inc]');if(inc){const c=getCart(),x=c.find(x=>x.key===inc.dataset.inc),p=x&&getProduct(x.id);if(x&&p){const max=Number(p.stock||0);if(Number(x.qty||0)>=max){toast(getLang()==='en'?`Only ${max} left in stock`:`المتاح في المخزون ${max} قطعة بس`);return}x.qty++;saveCart(c);renderCart();refreshBadges()}return}
  const dec=e.target.closest('[data-dec]');if(dec){const c=getCart(),x=c.find(x=>x.key===dec.dataset.dec);if(x){x.qty--;const n=x.qty>0?c:c.filter(y=>y.key!==x.key);saveCart(n);renderCart();refreshBadges()}return}
  });}
 function initProduct(){const el=$('[data-product]');if(!el)return;const p=getProduct(new URLSearchParams(location.search).get('id')||el.dataset.product);if(!p)return;const isMain=Number(p.id)===1;const crumb=$('.breadcrumbs');if(crumb){const enCrumb=getLang()==='en';const typeLink=p.type==='accessories'?'accessories.html':'clothes.html';const typeName=enCrumb?(p.type==='accessories'?'Accessories':'Clothes'):(p.type==='accessories'?'اكسسوارات':'ملابس');crumb.innerHTML=`<a href="home.html">${enCrumb?'Home':'الرئيسية'}</a><span>/</span><a href="${typeLink}">${typeName}</a><span>/</span><span>${productName(p)}</span>`;}const meta=isMain?{nameAr:'فستان كتان أنيق',nameEn:'Elegant Linen Dress',collectionAr:'كوليكشن صيف ٢٠٢٦ الفاخر',collectionEn:'Luxury Summer 2026 Collection',price:450,descriptionAr:'تألقي بهذا الفستان المصنوع من أجود خامات الكتان الطبيعي المريح والمنعش، بتميز بقصة مريحة وتفاصيل أنثوية رقيقة تضفي لمسة من الرقي على إطلالتك اليومية أو في المناسبات الخاصة. صمم بعناية فائقة ليمنحك شعورًا بالراحة والجمال.',descriptionEn:'Made from breathable natural linen with a flattering cut and delicate feminine details, this dress brings an effortless elegant feel to everyday looks and special occasions.',colors:[['#e8a2b8','Pink','وردي'],['#ead7ae','Beige','بيج'],['#e3b632','Gold','ذهبي'],['#5b4038','Brown','بني']],sizes:['S','M','L','XL']}:{nameAr:p.name,nameEn:PRODUCT_EN[p.id]||p.name,collectionAr:'تفاصيل المنتج',collectionEn:'Product details',price:p.price,descriptionAr:'قطعة مميزة بتصميم أنيق وجودة عالية، مناسبة لإطلالتك اليومية والمناسبات. اختاري المقاس واللون ثم أضيفيها للسلة.',descriptionEn:'A stylish, high-quality piece designed for everyday looks and special occasions. Choose your size and color, then add it to your cart.',colors:normalizeProductColors(p.colors),sizes:Array.isArray(p.sizes)?p.sizes:String(p.sizes||'S, M, L, XL').split(',').map(x=>x.trim()).filter(Boolean),sizeOptions:Array.isArray(p.sizeOptions)?p.sizeOptions.map(x=>typeof x==='string'?{name:x,enabled:true}:x):String(p.sizes||'S, M, L, XL').split(',').map(x=>({name:x.trim(),enabled:true})).filter(x=>x.name)};
@@ -247,7 +257,7 @@ function renderManagedCategoryTiles(){
  applyClosedCategoryPresentation();
 }
 
-function enforceClosedRoutes(){const path=location.pathname.toLowerCase(),params=new URLSearchParams(location.search),cat=params.get('cat'),pid=params.get('id');if(cat&&path.endsWith('category.html')&&isTileClosed(cat)){location.replace((getStoreSettings().categoryTiles||[]).find(x=>String(x.type||x.id)===String(cat))?.group==='clothes'?'clothes.html':'accessories.html');return}if(pid){const p=getProduct(pid);if(p){const tile=(getStoreSettings().categoryTiles||[]).find(x=>String(x.type||x.id)===String(p.cat));if(tile&&tile.enabled===false){location.replace(p.type==='accessories'?'accessories.html':'clothes.html');}}}}
+function enforceClosedRoutes(){const path=location.pathname.toLowerCase(),params=new URLSearchParams(location.search),cat=params.get('cat'),pid=params.get('id');if(cat&&path.endsWith('category.html')&&isTileClosed(cat)){applyClosedCategoryPresentation();return}if(pid){const p=getProduct(pid);if(p){const tile=(getStoreSettings().categoryTiles||[]).find(x=>String(x.type||x.id)===String(p.cat));if(tile&&tile.enabled===false){applyClosedCategoryPresentation();}}}}
 function isTileClosed(type){const settings=getStoreSettings();const tile=(settings.categoryTiles||[]).find(x=>String(x.type||x.id)===String(type));return !!(tile&&tile.enabled===false);}
 document.addEventListener('click',e=>{const a=e.target.closest('a');if(!a)return;let url;try{url=new URL(a.href,location.href)}catch{return}const cat=url.searchParams.get('cat');if(cat&&url.pathname.toLowerCase().endsWith('category.html')&&isTileClosed(cat)){e.preventDefault();e.stopPropagation();toast('القسم ده متوقف حاليًا');return}if((a.dataset.categoryClosed==='true'||a.closest('.gh-tile-sealed'))){e.preventDefault();e.stopPropagation();toast('القسم ده متوقف حاليًا');return}},true);
 document.addEventListener('DOMContentLoaded',enforceClosedRoutes);

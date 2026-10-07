@@ -54,6 +54,40 @@ if(c){
 if(data.backend.url&&data.backend.key)api('saveData',{kind,value:data[kind]}).then(r=>{if(!r.ok&&!r.local)toast('تعذر المزامنة مع الخلفية؛ التغييرات محفوظة محليًا')});}
 const statusClass=s=>({'جديد':'pink','قيد التجهيز':'orange','تم الشحن':'orange','تم التسليم':'green','ملغي':'red'}[s]||'');
 function normalizeOrder(o,i){return {...o,order:o.order||o.id||`GH-${String(i+1).padStart(5,'0')}`,createdAt:o.createdAt||o.date||new Date().toISOString(),customer:o.customer||{name:o.name||o.customerName,phone:o.phone,governorate:o.governorate,address:o.address,payment:o.payment},total:Number(o.total||0),status:o.status||'جديد',paid:!!o.paid,items:o.items||[],deleted:!!o.deleted};}
+
+// Inventory sync starts with orders created after this release so existing stock is not double-deducted.
+const INVENTORY_SYNC_FROM='2026-10-07T00:00:00+03:00';
+function reconcileOrderInventory(o){
+  if(!o||!Array.isArray(o.items)||!o.items.length)return false;
+  if(new Date(o.createdAt)<new Date(INVENTORY_SYNC_FROM))return false;
+  const state=o.inventoryState||'none';
+  const canceled=o.status==='ملغي';
+  if(!canceled && state==='deducted')return false;
+  if(canceled && state!=='deducted')return false;
+  const direction=canceled?1:-1;
+  let changed=false;
+  for(const item of o.items){
+    const product=data.products.find(p=>Number(p.id)===Number(item.id));
+    const qty=Math.max(0,Number(item.qty||0));
+    if(!product||!qty)continue;
+    const before=Number(product.stock||0);
+    product.stock=Math.max(0,before+(direction*qty));
+    if(product.stock!==before)changed=true;
+  }
+  o.inventoryState=canceled?'restored':'deducted';
+  return changed;
+}
+async function syncInventoryFromOrders(){
+  let productsChanged=false,ordersChanged=false;
+  for(const o of data.orders){
+    const before=o.inventoryState||'none';
+    if(reconcileOrderInventory(o)){productsChanged=true;ordersChanged=true;}
+    if(before!==o.inventoryState)ordersChanged=true;
+  }
+  if(productsChanged){syncProductsToStore();await persist('products');}
+  if(ordersChanged)await persist('orders');
+  return {productsChanged,ordersChanged};
+}
 function init(){
 data.products=read('products',seedProducts());data.orders=read('orders',[]).map(normalizeOrder);data.promos=read('promos',defaultPromos);data.categories=read('categories',defaultCategories);data.banners=read('banners',defaultBanners);data.settings=read('settings',{storeName:'Girl Hub',whatsapp:'201279860213',shipping:50,shippingByGovernorate:{},minimum:0,announcement:'عروض مميزة لكل يوم ✨',announcementEnabled:true,categoryTiles:defaultCategoryTiles,paymentMethods:defaultPaymentMethods,orderDiscountEnabled:false,orderDiscountMin:0,orderDiscountType:'percent',orderDiscountValue:0,orderDiscountPercent:0,freeShippingMin:0,socialLinks:{instagram:'https://www.instagram.com/girl_hub.gh?stkn=MWRkdGl4OGZ2dW5hYg==',facebook:'',tiktok:'https://www.tiktok.com/@girl.hub21?is_from_webapp=1&sender_device=pc',whatsapp:'https://chat.whatsapp.com/KddbvTR3t7h7am8utFqufA?mode=wwt&utm_source=ig&utm_medium=social&utm_content=link_in_bio&fbclid=PAdGRleAUfnOhwZG9mAmZkaWQWUO7RNK2dDAsek2Nqx7L5ocn9f15ijmV4g4D4DYWVtAjExAHNydGMGYXBwX2lkDzEyNDAyNDU3NDI4NzQxNAABpwRUv5Ft_xYJ88VnKRo1eBglYrhMq__wOM8lETQP56IEx6SSwwP9T671zy0d_aem_R09L8hRhdFI-nruHdQwtcA'},pageMeta:{}});
 data.settings.categoryTiles=Array.isArray(data.settings.categoryTiles)&&data.settings.categoryTiles.length?data.settings.categoryTiles:defaultCategoryTiles;
@@ -245,7 +279,7 @@ $('#passwordForm').addEventListener('submit',async e=>{
 });
 $('#saveBackend').onclick=async()=>{data.backend={url:$('#backendUrl').value.trim(),key:$('#backendKey').value.trim()};save('backend',data.backend);let r=await backendGet('ping');$('#backendMessage').textContent=sb()?'Supabase مضبوط في ملف الإعدادات؛ سجّلي الخروج ثم الدخول بحساب مصرح له.':(r?.ok?'تم الاتصال بالخلفية القديمة':(data.backend.url?'لم يتم التحقق من الاتصال. تأكدي من رابط Code.gs.':'أكملي إعداد Supabase في js/supabase-config.js.')); if(r?.ok){$('#backendNotice').textContent='متصل بالخلفية المركزية. ستتم مزامنة التغييرات مع قاعدة بيانات المتجر.';$('#backendNotice').classList.add('connected');loadOrders()}};
 $('#backupBtn').onclick=backup;$('#restoreInput').onchange=restore;
-renderAll();fillSettings();loadRemoteData();loadOrders();
+renderAll();fillSettings();loadRemoteData();loadOrders();window.__ghOrdersTimer=setInterval(()=>{if(!document.hidden)loadOrders()},20000);
 }
 function showApp(){$('#login').hidden=true;$('#app').hidden=false;renderAll();loadRemoteData()}
 async function loadRemoteData(){
@@ -294,7 +328,7 @@ let list=data.orders.filter(o=>!o.deleted).filter(o=>{let d=new Date(o.createdAt
 $('#ordersRows').innerHTML=list.length?list.map(o=>`<tr><td class="order-id">${esc(o.order)}</td><td>${dateText(o.createdAt)}</td><td><span class="customer">${esc(o.customer?.name||'—')}</span><span class="subline">${esc(o.customer?.phone||'')}</span></td><td>${esc(o.customer?.governorate||'—')}</td><td><b>${money(o.total)}</b></td><td><select class="status-select" data-status="${esc(o.order)}">${['جديد','قيد التجهيز','تم الشحن','تم التسليم','ملغي'].map(s=>`<option ${o.status===s?'selected':''}>${s}</option>`).join('')}</select></td><td><button class="mini-btn ${o.paid?'':'danger'}" data-paid="${esc(o.order)}">${o.paid?'✓ مدفوع':'غير مدفوع'}</button></td><td><div class="row-actions"><button class="mini-btn" data-details="${esc(o.order)}">تفاصيل</button><button class="mini-btn danger" data-delete-order="${esc(o.order)}">حذف</button></div></td></tr>`).join(''):'<tr><td colspan="8" class="empty">مفيش أوردرات مطابقة للفلاتر دي.</td></tr>';
 const mobile=$('#ordersMobileList');if(mobile)mobile.innerHTML=list.length?list.map(o=>`<article class="order-mobile-card"><div class="order-mobile-top"><b class="order-id">${esc(o.order)}</b><b>${money(o.total)}</b></div><div class="order-mobile-meta"><span>${esc(o.customer?.name||'—')}</span><span>${esc(o.customer?.phone||'—')}</span><span>${esc(o.customer?.governorate||'—')}</span><span>${dateText(o.createdAt)}</span></div><div class="order-mobile-actions"><select class="status-select" data-status="${esc(o.order)}">${['جديد','قيد التجهيز','تم الشحن','تم التسليم','ملغي'].map(s=>`<option ${o.status===s?'selected':''}>${s}</option>`).join('')}</select><button class="mini-btn ${o.paid?'':'danger'}" data-paid="${esc(o.order)}">${o.paid?'✓ مدفوع':'غير مدفوع'}</button><button class="mini-btn" data-details="${esc(o.order)}">تفاصيل</button><button class="mini-btn danger" data-delete-order="${esc(o.order)}">حذف</button></div></article>`).join(''):'<div class="empty">مفيش أوردرات مطابقة للفلاتر دي.</div>';
 $('#ordersCount').textContent=`عرض ${list.length} من ${data.orders.filter(o=>!o.deleted).length} أوردر`;
-$('#tab-orders').querySelectorAll('[data-status]').forEach(s=>s.onchange=()=>{let o=data.orders.find(o=>o.order===s.dataset.status);if(o){o.status=s.value;persist('orders');activity('تغيير حالة أوردر',`${o.order} ← ${o.status}`);renderOverview();toast('تم تحديث حالة الأوردر')}});
+$('#tab-orders').querySelectorAll('[data-status]').forEach(s=>s.onchange=()=>{let o=data.orders.find(o=>o.order===s.dataset.status);if(o){o.status=s.value;const inventoryChanged=reconcileOrderInventory(o);persist('orders');if(inventoryChanged){syncProductsToStore();persist('products');renderProducts();}activity('تغيير حالة أوردر',`${o.order} ← ${o.status}`);renderOverview();toast('تم تحديث حالة الأوردر')}});
 $('#tab-orders').querySelectorAll('[data-paid]').forEach(b=>b.onclick=()=>{let o=data.orders.find(o=>o.order===b.dataset.paid);if(o){o.paid=!o.paid;persist('orders');activity('تحديث حالة الدفع',o.order);renderOrders();renderOverview();toast(o.paid?'تم وضع علامة مدفوع':'تم إلغاء علامة مدفوع')}});
 $('#tab-orders').querySelectorAll('[data-delete-order]').forEach(b=>b.onclick=()=>{let o=data.orders.find(o=>o.order===b.dataset.deleteOrder);if(o&&confirm(`متأكدة إنك عايزة تحذفي الأوردر ${o.order}؟ الأفضل تصدير نسخة قبل الحذف.`)){o.deleted=true;persist('orders');activity('حذف أوردر',o.order);renderOrders();renderOverview();toast('تم حذف الأوردر من العرض')}});
 $('#tab-orders').querySelectorAll('[data-details]').forEach(b=>b.onclick=()=>orderDetails(b.dataset.details));
@@ -304,11 +338,11 @@ async function loadOrders(){
  if(c){
   const {data:rows,error}=await c.from('orders').select('id,order_number,payload,status,paid,deleted,created_at').order('created_at',{ascending:false});
   if(error){console.error(error);$('#backendNotice').textContent='تعذر تحميل الطلبات من Supabase: '+error.message;}
-  else{data.orders=(rows||[]).map((r,i)=>normalizeOrder({...((r.payload)||{}),supabaseId:r.id,order:r.order_number||r.payload?.order||`GH-${String(i+1).padStart(5,'0')}`,createdAt:r.created_at,status:r.status||r.payload?.status||'جديد',paid:typeof r.paid==='boolean'?r.paid:!!r.payload?.paid,deleted:typeof r.deleted==='boolean'?r.deleted:!!r.payload?.deleted},i));save('orders',data.orders);}
+  else{data.orders=(rows||[]).map((r,i)=>normalizeOrder({...((r.payload)||{}),supabaseId:r.id,order:r.order_number||r.payload?.order||`GH-${String(i+1).padStart(5,'0')}`,createdAt:r.created_at,status:r.status||r.payload?.status||'جديد',paid:typeof r.paid==='boolean'?r.paid:!!r.payload?.paid,deleted:typeof r.deleted==='boolean'?r.deleted:!!r.payload?.deleted},i));save('orders',data.orders);await syncInventoryFromOrders();}
   renderOrders();renderOverview();return;
  }
  let r=await backendGet('getOrders');
- if(r?.ok&&Array.isArray(r.orders)){data.orders=r.orders.map(normalizeOrder);save('orders',data.orders);$('#backendNotice').textContent='متصل بالخلفية المركزية. بيانات الأوردرات تُقرأ من Google Sheets.';$('#backendNotice').classList.add('connected');}
+ if(r?.ok&&Array.isArray(r.orders)){data.orders=r.orders.map(normalizeOrder);save('orders',data.orders);await syncInventoryFromOrders();$('#backendNotice').textContent='متصل بالخلفية المركزية. بيانات الأوردرات تُقرأ من Google Sheets.';$('#backendNotice').classList.add('connected');}
  renderOrders();renderOverview();
 }
 function orderDetails(id){let o=data.orders.find(o=>o.order===id);if(!o)return;let c=o.customer||{};modal(`تفاصيل الأوردر ${esc(o.order)}`,`<div class="modal-form"><label>اسم العميل<input readonly value="${esc(c.name||'—')}"></label><label>الهاتف<input readonly value="${esc(c.phone||'—')}"></label><label>المحافظة<input readonly value="${esc(c.governorate||'—')}"></label><label>طريقة الدفع<input readonly value="${esc(c.payment||'—')}"></label><label class="full">العنوان<textarea readonly>${esc(c.address||'—')}</textarea></label><div class="full"><b>المنتجات</b><p>${(o.items||[]).map(i=>`${esc(i.name||i.title||'منتج')} × ${Number(i.qty||1)} — ${esc(i.size||'')} ${esc(i.colorName||'')}`).join('<br>')||esc(o.itemText||'تفاصيل المنتجات غير متاحة في البيانات القديمة')}</p><div class="order-discount-details"><b>كود الخصم:</b> ${esc(o.promoCode||'—')}<br><b>نسبة خصم الكود:</b> ${o.promoPercent?esc(o.promoPercent)+'%':'—'}<br><b>قيمة خصم الكود:</b> ${money(o.promoDiscount||0)}<br><b>الخصم التلقائي:</b> ${money(o.autoDiscount||0)}<br><b>إجمالي الخصومات:</b> ${money(o.discount||0)}</div><b>الإجمالي: ${money(o.total)}</b></div></div><div class="modal-actions"><button class="btn light" data-close>إغلاق</button><button class="btn" id="detailPaid">${o.paid?'إلغاء علامة مدفوع':'تحديد كمدفوع'}</button></div>`);
