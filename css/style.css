@@ -247,7 +247,7 @@ html[dir="ltr"] .header-inner{direction:ltr}html[dir="ltr"] .header-right{direct
 
 /* V11 modern motion + accessories reference pass */
 .gh-hero{isolation:isolate;border-radius:0;perspective:1200px;background:#8c7166}
-.gh-hero-slide{position:absolute;inset:0;opacity:0;visibility:hidden;transform:scale(1.04) translate3d(0,0,0);transition:opacity 1s cubic-bezier(.22,.61,.36,1),transform 7s cubic-bezier(.2,.7,.2,1),visibility 1s}
+.gh-hero-slide{position:absolute;inset:0;opacity:0;visibility:hidden;transform:scale(1.015) translate3d(0,0,0);transition:opacity .7s ease,transform 5.5s cubic-bezier(.2,.65,.25,1),visibility .7s}
 .gh-hero-slide.is-active{opacity:1;visibility:visible;transform:scale(1)}
 .gh-hero-slide .gh-hero-bg{height:100%;object-position:center;transform:none!important}
 .gh-hero-shade{z-index:2;background:linear-gradient(90deg,rgba(25,9,9,.03) 10%,rgba(28,8,7,.12) 54%,rgba(30,10,8,.5) 100%)}
@@ -258,8 +258,8 @@ html[dir="ltr"] .header-inner{direction:ltr}html[dir="ltr"] .header-right{direct
 .gh-hero-nav{position:absolute;z-index:6;top:50%;transform:translateY(-50%);width:42px;height:42px;border:1px solid rgba(255,255,255,.55);border-radius:50%;background:rgba(255,255,255,.14);backdrop-filter:blur(8px);color:#fff;font-size:28px;line-height:1;cursor:pointer;display:grid;place-items:center;transition:.25s;opacity:.8}
 .gh-hero-nav:hover{background:rgba(233,137,177,.9);border-color:#e989b1;transform:translateY(-50%) scale(1.06);opacity:1}
 .gh-hero-prev{left:22px}.gh-hero-next{right:22px}
-.hero-pulse .gh-hero-content{animation:ghHeroContentSwap .8s cubic-bezier(.16,1,.3,1)}
-@keyframes ghHeroContentSwap{0%{opacity:.2;transform:translateY(-45%) translateX(16px)}100%{opacity:1;transform:translateY(-50%) translateX(0)}}
+.hero-pulse .gh-hero-content{animation:ghHeroContentSwap .48s ease-out}
+@keyframes ghHeroContentSwap{0%{opacity:.45;transform:translateY(-50%) translateX(8px)}100%{opacity:1;transform:translateY(-50%) translateX(0)}}
 
 /* The requested paper/card vertical flip reveal for "عايزه إيه؟" */
 .choose-card.gh-reveal{opacity:0;transform:perspective(900px) rotateX(-88deg) translateY(28px);transform-origin:top center;backface-visibility:hidden;filter:blur(1px)}
@@ -303,17 +303,17 @@ html[dir="ltr"] .header-inner{direction:ltr}html[dir="ltr"] .header-right{direct
 .slider-arrows button.active{background:#ee8eae!important}
 
 /* V14 reveal motion: the home chooser returns with a vertical page-turn effect */
-.gh-reveal{opacity:0;transform:perspective(900px) rotateX(-82deg) translateY(28px);transform-origin:50% 100%;filter:blur(2px);transition:opacity .75s ease var(--delay,0ms),transform .9s cubic-bezier(.2,.78,.2,1) var(--delay,0ms),filter .75s ease var(--delay,0ms)}
-.gh-reveal.visible{opacity:1;transform:perspective(900px) rotateX(0) translateY(0);filter:blur(0)}
-.choose-card.gh-reveal{will-change:transform,opacity,filter}
+.gh-reveal{opacity:0;transform:translate3d(0,18px,0);filter:none;transition:opacity .55s ease var(--delay,0ms),transform .65s cubic-bezier(.22,.7,.25,1) var(--delay,0ms)}
+.gh-reveal.visible{opacity:1;transform:translate3d(0,0,0)}
+.choose-card.gh-reveal{will-change:transform,opacity}
 
-/* Clothes page: cards rise/flip into view instead of appearing static */
-.clothes-motion{opacity:0;transform:perspective(1000px) rotateX(-7deg) translateY(34px);transition:opacity .7s ease var(--section-delay,0ms),transform .8s cubic-bezier(.2,.8,.2,1) var(--section-delay,0ms)}
-.clothes-motion.in-view{opacity:1;transform:none}
-.clothes-card-motion{opacity:0;transform:perspective(900px) rotateY(12deg) translateY(26px) scale(.97);transition:opacity .65s ease var(--card-delay,0ms),transform .72s cubic-bezier(.2,.8,.2,1) var(--card-delay,0ms),box-shadow .3s ease}
-.clothes-card-motion.in-view{opacity:1;transform:none}
-.clothes-category .card{transition:transform .35s ease,box-shadow .35s ease}
-.clothes-category .card:hover{transform:translateY(-7px);box-shadow:0 18px 38px rgba(82,47,39,.12)}
+/* Smooth, subtle entrance on the clothes page — no flips or blur */
+.clothes-motion{opacity:0;transform:translate3d(0,16px,0);transition:opacity .5s ease var(--section-delay,0ms),transform .6s cubic-bezier(.22,.7,.25,1) var(--section-delay,0ms)}
+.clothes-motion.in-view{opacity:1;transform:translate3d(0,0,0)}
+.clothes-card-motion{opacity:0;transform:translate3d(0,12px,0);transition:opacity .42s ease var(--card-delay,0ms),transform .52s cubic-bezier(.22,.7,.25,1) var(--card-delay,0ms)}
+.clothes-card-motion.in-view{opacity:1;transform:translate3d(0,0,0)}
+.clothes-category .card{transition:transform .28s ease,box-shadow .28s ease}
+.clothes-category .card:hover{transform:translate3d(0,-4px,0);box-shadow:0 12px 28px rgba(82,47,39,.09)}
 @media(prefers-reduced-motion:reduce){.gh-reveal,.clothes-motion,.clothes-card-motion{opacity:1!important;transform:none!important;filter:none!important;transition:none!important}}
 
 

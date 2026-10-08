@@ -12,12 +12,12 @@
 .gh-offers-viewport{overflow:hidden;width:100%;touch-action:pan-y;cursor:grab}
 .gh-offers-viewport.is-dragging{cursor:grabbing}
 .gh-offers-track{display:flex;gap:14px;direction:ltr;will-change:transform;transform:translate3d(0,0,0)}
-.gh-offer-card{flex:0 0 calc((100% - 42px)/4);min-width:0;background:#fff;border:1px solid rgba(120,80,90,.08);border-radius:16px;overflow:hidden;direction:rtl;text-align:right;box-shadow:0 7px 24px rgba(70,40,50,.07);transition:transform .25s ease,box-shadow .25s ease}
-.gh-offer-card:hover{transform:translateY(-5px);box-shadow:0 14px 30px rgba(70,40,50,.12)}
+.gh-offer-card{flex:0 0 calc((100% - 42px)/4);min-width:0;background:#fff;border:1px solid rgba(120,80,90,.08);border-radius:16px;overflow:hidden;direction:rtl;text-align:right;box-shadow:0 7px 24px rgba(70,40,50,.07);transition:transform .28s ease,box-shadow .28s ease}
+.gh-offer-card:hover{transform:translateY(-3px);box-shadow:0 11px 28px rgba(70,40,50,.10)}
 .gh-offer-link{display:block;color:inherit;text-decoration:none}
 .gh-offer-media{position:relative;aspect-ratio:4/5;background:#f7efec;overflow:hidden}
-.gh-offer-media img{width:100%;height:100%;display:block;object-fit:cover;transition:transform .45s ease}
-.gh-offer-card:hover .gh-offer-media img{transform:scale(1.045)}
+.gh-offer-media img{width:100%;height:100%;display:block;object-fit:cover;transition:transform .6s cubic-bezier(.22,.7,.25,1)}
+.gh-offer-card:hover .gh-offer-media img{transform:scale(1.025)}
 .gh-offer-badge{position:absolute;top:10px;right:10px;background:#8f6266;color:#fff;padding:6px 9px;border-radius:999px;font-size:10px;font-weight:800}
 .gh-offer-body{padding:12px 13px 15px}
 .gh-offer-name{font-size:14px;font-weight:800;line-height:1.7;min-height:48px}
@@ -82,18 +82,18 @@
  const card=p=>`<article class="gh-offer-card"><a class="gh-offer-link" href="product.html?id=${encodeURIComponent(p.id)}" aria-label="${String(p.name||'منتج').replace(/"/g,'&quot;')}"><div class="gh-offer-media"><img src="${String(p.img||'assets/images/logo.png').replace(/"/g,'&quot;')}" alt="${String(p.name||'منتج').replace(/"/g,'&quot;')}">${pct(p)?`<span class="gh-offer-badge">${pct(p)}% خصم</span>`:''}</div><div class="gh-offer-body"><div class="gh-offer-name">${p.name||'منتج'}</div><div class="gh-offer-price"><strong>${Number(p.price||0).toLocaleString('ar-EG')} ج.م</strong>${Number(p.old)>0?`<del>${Number(p.old).toLocaleString('ar-EG')} ج.م</del>`:''}</div></div></a></article>`;
  const getItems=()=>Array.isArray(window.PRODUCTS)?PRODUCTS.filter(p=>p.visible!==false&&p.offer===true):[];
  const stop=()=>{if(timer){clearInterval(timer);timer=null}};
- const start=()=>{stop();if(items.length>visible())timer=setInterval(()=>move(1),3200)};
- const transform=(animate=true)=>{const t=track();if(!t)return;t.style.transition=animate?'transform .65s cubic-bezier(.16,1,.3,1)':'none';t.style.transform=`translate3d(${-index*step()}px,0,0)`};
+ const start=()=>{stop();if(items.length>visible())timer=setInterval(()=>move(1),4600)};
+ const transform=(animate=true)=>{const t=track();if(!t)return;t.style.transition=animate?'transform .72s cubic-bezier(.22,.72,.25,1)':'none';t.style.transform=`translate3d(${-index*step()}px,0,0)`};
  const normalize=()=>{if(!items.length)return;const n=items.length; if(index>=n*2){index-=n;transform(false)} if(index<n){index+=n;transform(false)}};
- const move=dir=>{if(!items.length)return;index+=dir;transform(true);const n=items.length;setTimeout(()=>{if(index>=n*2){index-=n;transform(false)}else if(index<n){index+=n;transform(false)}},680);start()};
+ const move=dir=>{if(!items.length)return;index+=dir;transform(true);const n=items.length;setTimeout(()=>{if(index>=n*2){index-=n;transform(false)}else if(index<n){index+=n;transform(false)}},760);start()};
  const render=()=>{
    stop();items=getItems();const t=track(),v=viewport();if(!t||!v)return;
    if(!items.length){t.innerHTML='<div class="gh-offers-empty" style="width:100%"><h2>مفيش عروض حالياً</h2><p>تابعي الصفحة عشان العروض الجديدة.</p></div>';t.style.transform='none';ready=false;return}
    t.innerHTML=[...items,...items,...items].map(card).join('');index=items.length;transform(false);ready=true;start();
  };
  const onDown=e=>{if(e.pointerType==='mouse'&&e.button!==0)return;const v=viewport();if(!v)return;stop();dragging=true;moved=false;startX=lastX=e.clientX;v.classList.add('is-dragging');track().style.transition='none';};
- const onMove=e=>{if(!dragging)return;const dx=e.clientX-startX;if(Math.abs(dx)>6)moved=true;lastX=e.clientX;const base=-index*step();track().style.transform=`translate3d(${base+dx*.82}px,0,0)`;};
- const onUp=()=>{if(!dragging)return;dragging=false;viewport().classList.remove('is-dragging');const dx=lastX-startX;if(Math.abs(dx)>45){move(dx<0?1:-1)}else transform(true);setTimeout(start,750);};
+ const onMove=e=>{if(!dragging)return;const dx=e.clientX-startX;if(Math.abs(dx)>6)moved=true;lastX=e.clientX;const base=-index*step();track().style.transform=`translate3d(${base+dx*.92}px,0,0)`;};
+ const onUp=()=>{if(!dragging)return;dragging=false;viewport().classList.remove('is-dragging');const dx=lastX-startX;if(Math.abs(dx)>45){move(dx<0?1:-1)}else transform(true);setTimeout(start,850);};
  const bind=()=>{
    const v=viewport(),s=slider();if(!v||!s)return;
    v.addEventListener('pointerdown',onDown,{passive:true});v.addEventListener('pointermove',onMove,{passive:true});v.addEventListener('pointerup',onUp,{passive:true});v.addEventListener('pointercancel',onUp,{passive:true});v.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'&&dragging)onUp()});
