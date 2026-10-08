@@ -143,8 +143,8 @@ body{background:#fffaf7;color:#2b151d}
 .gh-reveal{opacity:0;transform:translateY(25px);transition:opacity .65s ease var(--delay),transform .65s ease var(--delay)}.gh-reveal.visible{opacity:1;transform:none}
 @keyframes ghHeroIn{from{opacity:0;transform:translateY(-35%)}to{opacity:1;transform:translateY(-50%)}}
 .figma-header .logo{width:104px;height:80px}
-@media(max-width:900px){.gh-hero,.gh-hero-bg{height:350px}.gh-hero-content{width:48%;right:5%}.gh-hero h1{font-size:31px}.figma-header .logo{width:96px;height:76px}}
-@media(max-width:600px){.gh-hero,.gh-hero-bg{height:360px}.gh-hero-content{width:62%;right:5%;top:52%}.gh-hero h1{font-size:28px}.gh-hero p{font-size:11px}.gh-hero-btn{padding:9px 18px;font-size:10px}.gh-hero-dots{right:5%;bottom:15%}.figma-header .logo{width:88px;height:70px}}
+@media(max-width:900px){.gh-hero,.gh-hero-bg{height:420px;min-height:420px}.gh-hero-content{width:48%;right:5%}.gh-hero h1{font-size:31px}.figma-header .logo{width:96px;height:76px}}
+@media(max-width:600px){.gh-hero,.gh-hero-bg{height:400px;min-height:400px}.gh-hero-content{width:62%;right:5%;top:52%}.gh-hero h1{font-size:28px}.gh-hero p{font-size:11px}.gh-hero-btn{padding:9px 18px;font-size:10px}.gh-hero-dots{right:5%;bottom:15%}.figma-header .logo{width:88px;height:70px}}
 
 
 /* V7 refinements */
@@ -246,10 +246,10 @@ html[dir="ltr"] .header-inner{direction:ltr}html[dir="ltr"] .header-right{direct
 @media(max-width:600px){.wish-icon{width:19px;font-size:17px}.figma-header .badge{width:15px;height:15px;font-size:7px;top:-5px;right:-5px}.clothes-sections{padding:25px 0 40px}.clothes-category{padding-bottom:28px}.clothes-category-head h2{font-size:24px}.clothes-category-head a{font-size:9px}.clothes-category .products{gap:10px}.clothes-category .card-media{height:205px}.clothes-category .card-body{padding:8px}.clothes-category .card-body h3{font-size:9px}.clothes-category .price{font-size:10px}.clothes-category .quick-add{min-width:62px;height:25px;font-size:8px;padding:0 7px}}
 
 /* V11 modern motion + accessories reference pass */
-.gh-hero{isolation:isolate;border-radius:0;perspective:1200px;background:#8c7166}
+.gh-hero{isolation:isolate;border-radius:0;perspective:1200px;background:#8c7166;min-height:460px}
 .gh-hero-slide{position:absolute;inset:0;opacity:0;visibility:hidden;transform:scale(1.015) translate3d(0,0,0);transition:opacity .7s ease,transform 5.5s cubic-bezier(.2,.65,.25,1),visibility .7s}
 .gh-hero-slide.is-active{opacity:1;visibility:visible;transform:scale(1)}
-.gh-hero-slide .gh-hero-bg{height:100%;object-position:center;transform:none!important}
+.gh-hero-slide .gh-hero-bg{height:100%;min-height:460px;object-position:center;transform:none!important}
 .gh-hero-shade{z-index:2;background:linear-gradient(90deg,rgba(25,9,9,.03) 10%,rgba(28,8,7,.12) 54%,rgba(30,10,8,.5) 100%)}
 .gh-hero-content{z-index:3}
 .gh-hero-dots{z-index:5;cursor:pointer}
