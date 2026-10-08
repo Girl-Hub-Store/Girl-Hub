@@ -297,23 +297,41 @@ async function loadRemoteData(){
  if(c){
   const ok=await adminAllowed();
   if(!ok){$('#backendNotice').textContent='سجّلي الدخول بحساب مضاف إلى قائمة مديري المتجر في Supabase.';return;}
-  const {data:rows,error}=await c.from('store_data').select('kind,data');
+  const {data:rows,error}=await c.from('store_data').select('kind,data,updated_at').in('kind',['products','promos','categories','banners','settings']);
   if(error){console.error(error);$('#backendNotice').textContent='فشل تحميل بيانات Supabase: '+error.message;return;}
-  const remoteKinds=new Set((rows||[]).map(row=>row.kind));
-  for(const row of rows||[])if(['products','promos','categories','banners','settings'].includes(row.kind)){data[row.kind]=row.data;save(row.kind,data[row.kind]);}
-  // Keep category tile controls complete even when an older remote settings object is loaded.
-  data.settings=data.settings||{};data.settings.showStockBySize=data.settings.showStockBySize!==false;
-  const remoteTiles=Array.isArray(data.settings.categoryTiles)?data.settings.categoryTiles:[];
-  const remoteMap=new Map(remoteTiles.map(x=>[x.id,x]));
-  defaultCategoryTiles.forEach(def=>{if(!remoteMap.has(def.id))remoteTiles.push({...def});});
-  data.settings.categoryTiles=remoteTiles.map(x=>({...x,group:x.group||(String(x.type||x.id).match(/^(shirts|dresses|pants)$/i)?'clothes':'accessories')}));
-  if(!remoteKinds.has('settings') || remoteTiles.length!==((rows||[]).find(r=>r.kind==='settings')?.data?.categoryTiles||[]).length){await c.from('store_data').upsert({kind:'settings',data:data.settings,updated_at:new Date().toISOString()},{onConflict:'kind'});}
-  const initialRows=['products','promos','categories','banners','settings'].filter(kind=>!remoteKinds.has(kind)).map(kind=>({kind:kind,data:data[kind],updated_at:new Date().toISOString()}));
-  if(initialRows.length){const {error:seedError}=await c.from('store_data').upsert(initialRows,{onConflict:'kind'});if(seedError){console.error(seedError);$('#backendNotice').textContent='تعذر تهيئة البيانات في Supabase: '+seedError.message;return;}}
+  // Supabase is authoritative. Never seed/overwrite remote data from a newly-added device.
+  const remoteRows=Array.isArray(rows)?rows:[];
+  const remoteKinds=new Set(remoteRows.map(row=>row.kind));
+  for(const row of remoteRows){
+   if(['products','promos','categories','banners','settings'].includes(row.kind)){
+    data[row.kind]=row.data;save(row.kind,data[row.kind]);
+    try{localStorage.setItem('girlhub_remote_'+row.kind,JSON.stringify(row.data));localStorage.setItem('girlhub_remote_updated_'+row.kind,row.updated_at||'')}catch(_){ }
+   }
+  }
+  // Only enrich settings in memory when the remote settings row already exists.
+  if(remoteKinds.has('settings')){
+   data.settings=data.settings||{};data.settings.showStockBySize=data.settings.showStockBySize!==false;
+   const remoteTiles=Array.isArray(data.settings.categoryTiles)?data.settings.categoryTiles:[];
+   const remoteMap=new Map(remoteTiles.map(x=>[x.id,x]));
+   defaultCategoryTiles.forEach(def=>{if(!remoteMap.has(def.id))remoteTiles.push({...def});});
+   data.settings.categoryTiles=remoteTiles.map(x=>({...x,group:x.group||(String(x.type||x.id).match(/^(shirts|dresses|pants)$/i)?'clothes':'accessories')}));
+  }
+  // If RLS/configuration accidentally hides all rows, do NOT upload local defaults over the store.
+  if(!remoteKinds.size){
+   $('#backendNotice').textContent='Supabase متصل لكن بيانات المتجر مش ظاهرة للحساب ده. راجع RLS أو نفّذ SUPABASE-REPAIR-SAFE.sql؛ لم يتم رفع أي بيانات محلية.';
+   $('#backendNotice').classList.remove('connected');renderAll();fillSettings();return;
+  }
+  // Missing remote kinds stay untouched; never replace them with this device's defaults.
+  if(!remoteKinds.has('products')){
+   data.products=[];
+   $('#backendNotice').textContent='تحذير: بيانات المنتجات غير ظاهرة لهذا الحساب في Supabase. راجع RLS قبل أي تعديل.';
+   $('#backendNotice').classList.remove('connected');
+  }else{
+   $('#backendNotice').textContent='متصل بـ Supabase — التعديلات تُحفظ مركزيًا وتظهر على الأجهزة الأخرى.';
+   $('#backendNotice').classList.add('connected');
+  }
   syncProductsToStore();renderAll();fillSettings();
-  $('#backendNotice').textContent='متصل بـ Supabase — التعديلات تُحفظ مركزيًا وتظهر على الأجهزة الأخرى.';$('#backendNotice').classList.add('connected');
-  for(const k of ['products','promos','categories','banners','settings'])try{localStorage.setItem('girlhub_remote_'+k,JSON.stringify(data[k]))}catch(_){}
-  document.dispatchEvent(new CustomEvent('girlhub:data-updated',{detail:{products:data.products,promos:data.promos,categories:data.categories,banners:data.banners,settings:data.settings}}));
+  document.dispatchEvent(new CustomEvent('girlhub:data-updated',{detail:{products:remoteKinds.has('products')?data.products:undefined,promos:remoteKinds.has('promos')?data.promos:undefined,categories:remoteKinds.has('categories')?data.categories:undefined,banners:remoteKinds.has('banners')?data.banners:undefined,settings:remoteKinds.has('settings')?data.settings:undefined}}));
   return;
  }
  const r=await backendGet('getData');
