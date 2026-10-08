@@ -31,7 +31,8 @@
  }
  if(window.GH_SUPABASE_READY && window.GH_SB){
   refreshRemote();
-  window.__girlHubRemoteTimer=setInterval(refreshRemote,30000);
+  window.__girlHubRemoteTimer=setInterval(refreshRemote,5000);
+  try{const channel=window.GH_SB.channel('girlhub-store-data-live');channel.on('postgres_changes',{event:'*',schema:'public',table:'store_data'},payload=>{const row=payload?.new||payload?.record||{};if(!row.kind||!['products','promos','categories','banners','settings'].includes(row.kind))return;const detail={[row.kind]:row.data};try{localStorage.setItem('girlhub_remote_'+row.kind,JSON.stringify(row.data));localStorage.setItem('girlhub_remote_updated_'+row.kind,row.updated_at||new Date().toISOString())}catch(_){}if(row.kind==='products'&&Array.isArray(row.data)&&typeof PRODUCTS!=='undefined')PRODUCTS.splice(0,PRODUCTS.length,...row.data);document.dispatchEvent(new CustomEvent('girlhub:data-updated',{detail}));}).subscribe(status=>console.log('Girl Hub realtime:',status));window.__girlHubRealtimeChannel=channel;}catch(err){console.warn('Girl Hub realtime unavailable:',err)}
  } else if(!localAdminData){
   fetch(API+'?action=getPublicData').then(r=>r.json()).then(d=>{
    if(!d||!d.ok)return;
