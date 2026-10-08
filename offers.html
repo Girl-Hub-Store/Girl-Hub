@@ -83,7 +83,7 @@
  const pct=p=>Number(p.old)>Number(p.price)?Math.max(1,Math.round((1-Number(p.price)/Number(p.old))*100)):0;
  const escA=v=>String(v??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
  const card=p=>`<article class="gh-offer-card"><a class="gh-offer-link" href="product.html?id=${encodeURIComponent(p.id)}" aria-label="${escA(p.name||'منتج')}"><div class="gh-offer-media"><img src="${escA(p.img||'assets/images/logo.png')}" alt="${escA(p.name||'منتج')}" draggable="false">${pct(p)?`<span class="gh-offer-badge">${pct(p)}% خصم</span>`:''}</div><div class="gh-offer-body"><div class="gh-offer-name">${escA(p.name||'منتج')}</div><div class="gh-offer-price"><strong>${Number(p.price||0).toLocaleString('ar-EG')} ج.م</strong>${Number(p.old)>0?`<del>${Number(p.old).toLocaleString('ar-EG')} ج.م</del>`:''}</div></div></a></article>`;
- const getItems=()=>Array.isArray(window.PRODUCTS)?window.PRODUCTS.filter(p=>p.visible!==false&&(p.offer===true||(Number(p.old)>Number(p.price)&&Number(p.price)>0))):[];
+ const getItems=()=>{const list=(typeof PRODUCTS!=='undefined'&&Array.isArray(PRODUCTS))?PRODUCTS:[];return list.filter(p=>p.visible!==false&&(p.offer===true||(Number(p.old)>Number(p.price)&&Number(p.price)>0)));};
  const keyOf=list=>JSON.stringify(list.map(p=>[p.id,p.img,p.name,p.price,p.old,p.visible,p.offer]));
  const stop=()=>{if(timer){clearInterval(timer);timer=null}};
  const position=(animate=true)=>{const t=track();if(!t)return;t.style.transition=animate?'transform .78s cubic-bezier(.22,.72,.24,1)':'none';t.style.transform=`translate3d(${-index*step()}px,0,0)`};
