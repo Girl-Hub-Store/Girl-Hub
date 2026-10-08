@@ -25,9 +25,17 @@
   if(!(window.GH_SUPABASE_READY && window.GH_SB)) return;
   const {data:rows,error}=await window.GH_SB.from('store_data').select('kind,data,updated_at').in('kind',['products','promos','categories','banners','settings']);
   if(error){console.warn('Girl Hub Supabase public data unavailable:',error.message);return;}
-  const d={}; (rows||[]).forEach(row=>{d[row.kind]=row.data; try{localStorage.setItem('girlhub_remote_'+row.kind,JSON.stringify(row.data)); localStorage.setItem('girlhub_remote_updated_'+row.kind,row.updated_at||'')}catch(_){} });
-  if(Array.isArray(d.products)&&typeof PRODUCTS!=='undefined'){PRODUCTS.splice(0,PRODUCTS.length,...d.products);try{localStorage.setItem('girlhub_admin_products',JSON.stringify(d.products))}catch(_){}}
-  document.dispatchEvent(new CustomEvent('girlhub:data-updated',{detail:d}));
+  const d={};
+  (rows||[]).forEach(row=>{
+    const stamp=row.updated_at||'';
+    let oldStamp='';try{oldStamp=localStorage.getItem('girlhub_remote_updated_'+row.kind)||''}catch(_){}
+    try{localStorage.setItem('girlhub_remote_'+row.kind,JSON.stringify(row.data));localStorage.setItem('girlhub_remote_updated_'+row.kind,stamp)}catch(_){}
+    if(stamp!==oldStamp)d[row.kind]=row.data;
+    if(row.kind==='products'&&stamp!==oldStamp&&Array.isArray(row.data)&&typeof PRODUCTS!=='undefined'){
+      PRODUCTS.splice(0,PRODUCTS.length,...row.data);try{localStorage.setItem('girlhub_admin_products',JSON.stringify(row.data))}catch(_){}
+    }
+  });
+  if(Object.keys(d).length)document.dispatchEvent(new CustomEvent('girlhub:data-updated',{detail:d}));
  }
  if(window.GH_SUPABASE_READY && window.GH_SB){
   refreshRemote();

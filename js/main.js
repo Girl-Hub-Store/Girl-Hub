@@ -292,7 +292,27 @@ function applyRemoteStoreContent(detail){
   renderManagedCategoryTiles(); const topbar=document.querySelector('.topbar');if(topbar&&settings.announcementEnabled!==false&&settings.announcement)topbar.textContent=settings.announcement;else if(topbar&&settings.announcementEnabled===false)topbar.style.display='none';document.querySelectorAll('a[href*="wa.me/"],a[href*="api.whatsapp.com"]').forEach(a=>{const n=settings.socialLinks?.whatsapp||settings.whatsapp;if(n)a.href=String(n).startsWith('http')?n:'https://wa.me/'+String(n).replace(/\D/g,'');});const social=settings.socialLinks||{};document.querySelectorAll('[data-social=instagram]').forEach(a=>a.href=social.instagram||'#');document.querySelectorAll('[data-social=facebook]').forEach(a=>a.href=social.facebook||'#');document.querySelectorAll('[data-social=tiktok]').forEach(a=>a.href=social.tiktok||'#');applyPageMeta(settings.pageMeta||{});}
 }
 
-document.addEventListener('girlhub:data-updated',e=>{applyRemoteStoreContent(e.detail);applyClosedCategoryPresentation();enforceClosedRoutes();if(typeof applyManagedCheckoutSettings==='function')applyManagedCheckoutSettings();if(typeof renderCards==='function')renderCards();if(typeof renderCart==='function')renderCart();if(typeof renderWishlist==='function')renderWishlist();if(typeof updateCheckoutTotal==='function')updateCheckoutTotal();if(typeof initProduct==='function')initProduct();if(document.querySelector('#discountGrid')){const g=document.querySelector('#discountGrid');g.dataset.sliderReady='';initDiscountSlider();}});
+function updateProductDetailLive(p){
+ if(!p||!document.querySelector('[data-product]'))return;
+ const price=$('.detail-price');if(price)price.textContent=money(p.price||0);
+ const status=$('.detail-status-row .status');if(status){const ok=p.available!==false&&syncProductTotalStock(p)>0;status.classList.toggle('off',!ok);status.textContent=ok?tr('available'):tr('notAvailableLabel')}
+ const add=$('[data-padd]');if(add)add.disabled=p.available===false||syncProductTotalStock(p)<=0;
+ $$('.size-chips .chip').forEach(b=>{const sz=b.dataset.size,stock=sizeStock(p,sz),sold=stock<=0;const label=b.querySelector('.size-stock-count');if(label)label.textContent=sold?(getLang()==='en'?'Out of stock':'نفد'):(getLang()==='en'?`${stock} left`:`متبقي ${stock}`);b.disabled=sold;b.classList.toggle('size-disabled',sold);const x=b.querySelector('.size-x');if(sold&&!x){b.insertAdjacentHTML('beforeend','<span class="size-x">×</span>')}else if(!sold&&x)x.remove();});
+}
+function refreshOfferSliderData(){const g=$('#discountGrid');if(!g)return;const items=discountItems();const key=items.map(p=>p.id).join(',');if(g.dataset.offerKey!==key){g.dataset.offerKey=key;g.dataset.sliderReady='';initDiscountSlider();return}if(g.dataset.sliderReady==='1')refreshDiscountSliderLanguage(g,items);}
+document.addEventListener('girlhub:data-updated',e=>{
+ const d=e.detail||{}; applyRemoteStoreContent(d); applyClosedCategoryPresentation(); enforceClosedRoutes();
+ if(typeof applyManagedCheckoutSettings==='function' && d.settings)applyManagedCheckoutSettings();
+ if(d.products){
+   if(document.querySelector('.product-grid') && !document.querySelector('#discountGrid'))renderCards();
+   if(document.querySelector('.wishlist-grid'))renderWishlist();
+   if(document.querySelector('.cart-list'))renderCart();
+   const id=Number(new URLSearchParams(location.search).get('id'));
+   if(id){const p=getProduct(id);if(p)updateProductDetailLive(p)}
+   refreshOfferSliderData();
+ }
+ if((d.promos||d.products)&&typeof updateCheckoutTotal==='function'&&document.querySelector('#checkoutForm'))updateCheckoutTotal();
+});
 document.addEventListener('DOMContentLoaded',()=>{applyClosedCategoryPresentation();try{applyRemoteStoreContent({promos:JSON.parse(localStorage.getItem('girlhub_remote_promos')||'null'),categories:JSON.parse(localStorage.getItem('girlhub_remote_categories')||'[]'),banners:JSON.parse(localStorage.getItem('girlhub_remote_banners')||'[]'),settings:JSON.parse(localStorage.getItem('girlhub_remote_settings')||'null')})}catch(e){}});
 
 document.addEventListener('DOMContentLoaded',()=>{init();initPageTransitions()});
