@@ -2,7 +2,7 @@
 // Run the dashboard and storefront under the same Live Server origin for local edits to appear.
 (function(){
  'use strict';
- const API='https://script.google.com/macros/s/AKfycbzJljrxc4422H-6zmTVaXDmSz5sYx305m-3gEBk_TFHZFxvClS7dUAr67l08t8J_Vh9/exec';
+ const API='https://script.google.com/macros/s/AKfycbyl94rn98JsmcB-jw-N6EUevJD9tuEolXYfpVXHitI-n6E3KFIF_1h5gOiypwN6uZyJ/exec';
  const pairs={products:['gh_admin_products_v1','girlhub_admin_products'],promos:['gh_admin_promos_v1','girlhub_remote_promos'],categories:['gh_admin_categories_v1','girlhub_remote_categories'],banners:['gh_admin_banners_v1','girlhub_remote_banners'],settings:['gh_admin_settings_v1','girlhub_remote_settings']};
  function read(key){try{return JSON.parse(localStorage.getItem(key)||'null')}catch(_){return null}}
  function bridgeLocal(){

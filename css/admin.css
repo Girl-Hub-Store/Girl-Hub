@@ -65,3 +65,5 @@
 @media(max-width:760px){.top-logout{display:inline-flex;align-items:center;justify-content:center}.gallery-order-actions{gap:3px}.gallery-order-btn{width:28px;height:28px;touch-action:manipulation}.product-gallery-admin-item{touch-action:manipulation}}
 
 @media(max-width:760px){.color-editor-row{grid-template-columns:minmax(0,1fr) 48px auto;gap:6px}.color-visible-check{grid-column:1/-1;justify-self:start}.color-editor-row input[type=color]{width:48px;height:38px}}
+
+#ordersBackendNotice{display:block;margin-top:6px;line-height:1.5;font-weight:600}
