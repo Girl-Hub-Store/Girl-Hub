@@ -66,4 +66,4 @@
 
 @media(max-width:760px){.color-editor-row{grid-template-columns:minmax(0,1fr) 48px auto;gap:6px}.color-visible-check{grid-column:1/-1;justify-self:start}.color-editor-row input[type=color]{width:48px;height:38px}}
 
-#ordersBackendNotice{display:block;margin-top:6px;line-height:1.5;font-weight:600}
+#ordersBackendNotice{display:block;margin-top:12px;line-height:1.6;font-weight:600;color:#725e68}
