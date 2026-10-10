@@ -69,3 +69,7 @@
 
 /* Per-size/per-color inventory matrix */
 .color-stock-matrix-wrap{grid-column:1/-1;border:1px solid #eadde1;border-radius:12px;padding:12px;background:#fffafc;margin-top:8px}.color-stock-table{display:grid;gap:10px;margin-top:10px}.color-stock-size-row{border:1px solid #eee1e5;border-radius:10px;padding:10px}.color-stock-size-row>b{display:block;margin-bottom:8px}.color-stock-cells{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:8px}.color-stock-cells label{display:grid;gap:5px;font-size:12px}.color-stock-cells input{width:100%;min-width:0;padding:8px;border:1px solid #e4d7dc;border-radius:8px}.color-stock-cells input:disabled{opacity:.45;background:#eee}
+
+/* Banner order and crop orientation controls */
+.banner-order-actions{display:flex;gap:5px;flex:none}.banner-order-actions .mini-btn{min-width:34px;font-size:16px;font-weight:800;padding:7px}.banner-order-actions .mini-btn:disabled{opacity:.35;cursor:not-allowed}.crop-orientation-switch{display:flex;justify-content:center;gap:8px;margin:0 0 12px}.crop-orientation-switch .mini-btn{padding:9px 16px}.crop-orientation-switch .mini-btn.active{background:#a13c70;color:#fff;border-color:#a13c70}
+@media(max-width:760px){.banner-order-actions{display:flex;width:100%}.banner-order-actions .mini-btn{flex:1}.crop-orientation-switch .mini-btn{flex:1}}

@@ -688,3 +688,6 @@ body:has(.gh-sealed-page-notice) main{filter:none}
 .card-media{height:auto!important;aspect-ratio:4/5!important}.card-media>a{display:block;width:100%;height:100%}.card-media img{width:100%;height:100%;object-fit:cover;display:block}.product-image{aspect-ratio:4/5!important}.product-image img{width:100%;height:100%;object-fit:cover}.product-page .detail-image{height:auto!important;aspect-ratio:4/5!important}.product-page .detail-image img{width:100%;height:100%;object-fit:cover}.no-colors-note{display:inline-block;color:#8a737c;font-size:12px;padding:8px 0}
 
 .color-chip-sold{opacity:.3;filter:grayscale(1);cursor:not-allowed!important;position:relative}.color-chip-x{position:absolute;inset:0;display:grid;place-items:center;color:#9c263c;font-size:24px;font-weight:900;text-shadow:0 1px #fff;pointer-events:none}
+
+/* Portrait banners keep the full vertical crop visible instead of cutting it to landscape */
+.gh-hero-slide.is-vertical{background:#f8edf1}.gh-hero-slide.is-vertical .gh-hero-bg{width:auto;max-width:100%;height:100%;min-height:0;object-fit:contain;object-position:center;position:relative;margin:0 auto;transform:none!important}.gh-hero-slide.is-vertical .gh-hero-shade{background:linear-gradient(90deg,rgba(20,8,7,.04),rgba(30,10,8,.28))}
