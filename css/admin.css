@@ -66,3 +66,6 @@
 /* Color visibility control remains separate from deleting a color. */
 .color-editor-row{grid-template-columns:minmax(100px,1fr) 54px minmax(115px,auto) auto}.color-editor-row .color-visibility{font-size:11px!important;white-space:nowrap}.color-editor-row .color-visibility input{width:auto!important;min-height:0!important}
 @media(max-width:760px){.color-editor-row{grid-template-columns:minmax(0,1fr) 48px}.color-editor-row .color-visibility{grid-column:1}.color-editor-row [data-remove-color]{grid-column:2;grid-row:2;justify-self:end}}
+
+/* Per-size/per-color inventory matrix */
+.color-stock-matrix-wrap{grid-column:1/-1;border:1px solid #eadde1;border-radius:12px;padding:12px;background:#fffafc;margin-top:8px}.color-stock-table{display:grid;gap:10px;margin-top:10px}.color-stock-size-row{border:1px solid #eee1e5;border-radius:10px;padding:10px}.color-stock-size-row>b{display:block;margin-bottom:8px}.color-stock-cells{display:grid;grid-template-columns:repeat(auto-fit,minmax(115px,1fr));gap:8px}.color-stock-cells label{display:grid;gap:5px;font-size:12px}.color-stock-cells input{width:100%;min-width:0;padding:8px;border:1px solid #e4d7dc;border-radius:8px}.color-stock-cells input:disabled{opacity:.45;background:#eee}
