@@ -178,6 +178,7 @@ declare
   item_id text;
   item_size text;
   item_color text;
+  item_color_index integer;
   qty integer;
   pidx integer;
   old_status text;
@@ -212,8 +213,27 @@ begin
       end loop;
       if pidx is null or qty<=0 then continue; end if;
       product:=products->pidx;
+      -- Older orders may have only a numeric color index or a stale display name.
+      -- Resolve that index against the product's current colors before touching stock.
+      if jsonb_typeof(product->'stockBySizeColor')='object'
+         and jsonb_typeof(product->'stockBySizeColor'->item_size)='object'
+         and item_size<>''
+         and (item_color='' or not ((product->'stockBySizeColor'->item_size) ? item_color)) then
+        item_color_index:=case when trim(coalesce(item->>'color','')) ~ '^[0-9]+$' then trim(item->>'color')::integer else null end;
+        if item_color_index is not null and item_color_index>=0
+           and jsonb_typeof(product->'colors')='array'
+           and item_color_index<jsonb_array_length(product->'colors') then
+          item_color:=trim(coalesce(product->'colors'->item_color_index->>'name',''));
+        end if;
+      end if;
+      if jsonb_typeof(product->'stockBySizeColor')='object'
+         and jsonb_typeof(product->'stockBySizeColor'->item_size)='object'
+         and item_size<>''
+         and (item_color='' or not ((product->'stockBySizeColor'->item_size) ? item_color)) then
+        return jsonb_build_object('ok',false,'message','تعذر تحديد لون المنتج في بيانات الأوردر؛ لم يتم تعديل المخزون');
+      end if;
       if should_restore then
-        if jsonb_typeof(product->'stockBySizeColor')='object' and jsonb_typeof(product->'stockBySizeColor'->item_size)='object' and item_size<>'' and item_color<>'' then
+        if jsonb_typeof(product->'stockBySizeColor')='object' and jsonb_typeof(product->'stockBySizeColor'->item_size)='object' and item_size<>'' and item_color<>'' and ((product->'stockBySizeColor'->item_size) ? item_color) then
           stock_color:=greatest(coalesce(nullif(product->'stockBySizeColor'->item_size->>item_color,'')::numeric,0),0)+qty;
           product:=jsonb_set(product,array['stockBySizeColor',item_size,item_color],to_jsonb(stock_color),true);
           colors_size:=product->'stockBySizeColor'->item_size;
@@ -231,7 +251,7 @@ begin
           product:=jsonb_set(product,'{stock}',to_jsonb(stock_total),true);
         end if;
       else
-        if jsonb_typeof(product->'stockBySizeColor')='object' and jsonb_typeof(product->'stockBySizeColor'->item_size)='object' and item_size<>'' and item_color<>'' then
+        if jsonb_typeof(product->'stockBySizeColor')='object' and jsonb_typeof(product->'stockBySizeColor'->item_size)='object' and item_size<>'' and item_color<>'' and ((product->'stockBySizeColor'->item_size) ? item_color) then
           stock_color:=greatest(coalesce(nullif(product->'stockBySizeColor'->item_size->>item_color,'')::numeric,0),0);
           if stock_color<qty then return jsonb_build_object('ok',false,'message','المخزون غير كافي لإعادة تفعيل الأوردر'); end if;
           stock_color:=stock_color-qty;

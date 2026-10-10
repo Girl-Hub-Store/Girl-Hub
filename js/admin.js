@@ -73,7 +73,16 @@ function reconcileOrderInventory(o){
     const qty=Math.max(0,Number(item.qty||0));
     if(!product||!qty)continue;
     const itemSize=String(item.size||'').trim();
-    if(product.stockBySize&&typeof product.stockBySize==='object'&&itemSize){
+    const itemColor=String(item.colorName||'').trim();
+    const colorMap=product.stockBySizeColor;
+    if(colorMap&&typeof colorMap==='object'&&itemSize&&colorMap[itemSize]&&typeof colorMap[itemSize]==='object'&&itemColor&&Object.prototype.hasOwnProperty.call(colorMap[itemSize],itemColor)){
+      const beforeColor=Math.max(0,Number(colorMap[itemSize][itemColor]||0));
+      const afterColor=Math.max(0,beforeColor+(direction*qty));
+      if(afterColor!==beforeColor){colorMap[itemSize][itemColor]=afterColor;changed=true;}
+      product.stockBySize=product.stockBySize&&typeof product.stockBySize==='object'?product.stockBySize:{};
+      product.stockBySize[itemSize]=Object.values(colorMap[itemSize]).reduce((sum,v)=>sum+Math.max(0,Number(v||0)),0);
+      product.stock=Object.values(colorMap).reduce((sum,colors)=>sum+Object.values(colors||{}).reduce((sub,v)=>sub+Math.max(0,Number(v||0)),0),0);
+    }else if(product.stockBySize&&typeof product.stockBySize==='object'&&itemSize){
       const beforeSize=Math.max(0,Number(product.stockBySize[itemSize]||0));
       const afterSize=Math.max(0,beforeSize+(direction*qty));
       if(afterSize!==beforeSize){product.stockBySize[itemSize]=afterSize;changed=true;}
