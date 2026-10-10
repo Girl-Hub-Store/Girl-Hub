@@ -252,26 +252,28 @@ function renderHero(banners){const hero=document.querySelector('.gh-hero');if(!h
 
 function renderManagedCategoryTiles(){
  const settings=getStoreSettings();
- let tiles=Array.isArray(settings.categoryTiles)?settings.categoryTiles:[];
+ const tiles=Array.isArray(settings.categoryTiles)?settings.categoryTiles:[];
  if(!tiles.length)return;
- tiles=tiles.map(x=>({...x,group:x.group||(String(x.type||x.id).match(/^(shirts|dresses|pants)$/i)?'clothes':'accessories')}));
+ const normalized=tiles.map(x=>({...x,group:x.group||(String(x.type||x.id).match(/^(shirts|dresses|pants)$/i)?'clothes':'accessories')}));
+ const tileMarkup=x=>`<a class="accessory-feature" href="category.html?cat=${encodeURIComponent(x.type||x.id)}" data-category-type="${esc(x.type||x.id)}"><img src="${esc(x.img||'assets/images/necklace.jpg')}" alt="${esc(x.name||'قسم')}" style="object-position:${Number(x.imagePosX??50)}% ${Number(x.imagePosY??50)}%;transform:scale(${Math.max(1,Number(x.imageZoom||100)/100)})"><span class="accessory-shade"></span><span class="accessory-copy"><strong>${esc(x.name||'قسم')}</strong><small>${esc(x.subtitle||'اكتشفي المجموعة')}</small></span><b class="accessory-btn">تصفح المزيد ←</b></a>`;
  const accessoryGrid=document.querySelector('.accessories-grid');
  if(accessoryGrid){
-   accessoryGrid.querySelectorAll('.accessory-feature').forEach(card=>{
-     const type=card.dataset.categoryType||new URL(card.href,location.href).searchParams.get('cat')||'';
-     const tile=tiles.find(x=>String(x.type||x.id)===String(type));
-     if(tile){card.style.display='';card.classList.toggle('gh-tile-sealed',tile.enabled===false);card.dataset.categoryClosed=tile.enabled===false?'true':'false';card.dataset.sealMessage=tile.closedMessage||'SOON';const img=card.querySelector('img');if(img){img.src=tile.img||img.src;img.setAttribute('style',`object-position:${Number(tile.imagePosX??50)}% ${Number(tile.imagePosY??50)}%;transform:scale(${Math.max(1,Number(tile.imageZoom||100)/100)})`);}const st=card.querySelector('strong'),sm=card.querySelector('small');if(st)st.textContent=tile.name||st.textContent;if(sm)sm.textContent=tile.subtitle||sm.textContent;}
-   });
-   const visible=tiles.filter(x=>x.group==='accessories');
-   if(visible.length && accessoryGrid.children.length===0){
-     accessoryGrid.innerHTML=visible.map(x=>`<a class="accessory-feature" href="category.html?cat=${encodeURIComponent(x.type||x.id)}" data-category-type="${esc(x.type||x.id)}"><img src="${esc(x.img||'assets/images/necklace.jpg')}" alt="${esc(x.name||'قسم')}"><span class="accessory-shade"></span><span class="accessory-copy"><strong>${esc(x.name||'قسم')}</strong><small>${esc(x.subtitle||'اكتشفي المجموعة')}</small></span><b class="accessory-btn">تصفح المزيد ←</b></a>`).join('');
-   }
+   const visible=normalized.filter(x=>x.group==='accessories');
+   accessoryGrid.innerHTML=visible.map(tileMarkup).join('');
+   accessoryGrid.querySelectorAll('.accessory-feature').forEach(card=>{const type=card.dataset.categoryType;const tile=visible.find(x=>String(x.type||x.id)===String(type));if(tile){card.classList.toggle('gh-tile-sealed',tile.enabled===false);card.dataset.categoryClosed=tile.enabled===false?'true':'false';card.dataset.sealMessage=tile.closedMessage||'SOON';}});
  }
+ const clothesContainer=document.querySelector('[data-managed-clothes-grid], .clothes-categories-grid, .clothes-grid');
+ if(clothesContainer){
+   const visible=normalized.filter(x=>x.group==='clothes');
+   clothesContainer.innerHTML=visible.map(tileMarkup).join('');
+ }
+ // Existing clothes sections: update their names and state; append newly-created sections as navigable cards
+ // to the closest category collection so newly added subcategories are not silently omitted.
  document.querySelectorAll('.clothes-category').forEach(section=>{
    const link=section.querySelector('.clothes-category-head a');
    const cat=link?new URL(link.href,location.href).searchParams.get('cat'):'';
-   const tile=tiles.find(x=>String(x.type||x.id)===String(cat));
-   if(tile){section.style.display='';section.classList.toggle('gh-tile-sealed',tile.enabled===false);section.dataset.categoryClosed=tile.enabled===false?'true':'false';section.dataset.sealMessage=tile.closedMessage||'SOON';}
+   const tile=normalized.find(x=>String(x.type||x.id)===String(cat));
+   if(tile){section.style.display='';section.classList.toggle('gh-tile-sealed',tile.enabled===false);section.dataset.categoryClosed=tile.enabled===false?'true':'false';section.dataset.sealMessage=tile.closedMessage||'SOON';const heading=section.querySelector('.clothes-category-head h2, .clothes-category-head strong');if(heading)heading.textContent=tile.name||heading.textContent;}
  });
  applyClosedCategoryPresentation();
 }
