@@ -1,0 +1,10 @@
+Girl Hub V22 — inventory update fix
+
+1) The admin script now reconciles inventory when it loads Supabase orders, as a safety net for older orders that were saved without inventoryState.
+2) For stock to decrease immediately at checkout without opening the dashboard, the Supabase database function create_order_with_inventory_v22 must be the V22 inventory function that updates public.store_data products in the same transaction.
+3) In Supabase Dashboard > SQL Editor, run the appropriate migration already included in this project:
+   - SUPABASE-V22-SIZE-COLOR-INVENTORY.sql if your products use stockBySizeColor (and supports stockBySize / total stock).
+   - Otherwise SUPABASE-V22-SAFE-INVENTORY.sql for size-only / total stock.
+   Back up public.store_data (kind='products') first. Do not run both blindly if unsure which stock schema your catalog uses.
+4) Upload the updated Girl-Hub folder to the same GitHub Pages repository, including js/admin.js.
+5) Test with a product that has a known stock count: place a test order, then check public.store_data -> products in Supabase. The stock should decrease before opening the admin dashboard. Refresh the storefront to verify display.

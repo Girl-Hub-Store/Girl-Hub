@@ -348,7 +348,7 @@ async function loadOrders(){
  if(c){
   const {data:rows,error}=await c.from('orders').select('id,order_number,payload,status,paid,deleted,created_at').order('created_at',{ascending:false});
   if(error){console.error(error);$('#backendNotice').textContent='تعذر تحميل الطلبات من Supabase: '+error.message;}
-  else{data.orders=(rows||[]).map((r,i)=>normalizeOrder({...((r.payload)||{}),supabaseId:r.id,order:r.order_number||r.payload?.order||`GH-${String(i+1).padStart(5,'0')}`,createdAt:r.created_at,status:r.status||r.payload?.status||'جديد',paid:typeof r.paid==='boolean'?r.paid:!!r.payload?.paid,deleted:typeof r.deleted==='boolean'?r.deleted:!!r.payload?.deleted},i));save('orders',data.orders);}
+  else{data.orders=(rows||[]).map((r,i)=>normalizeOrder({...((r.payload)||{}),supabaseId:r.id,order:r.order_number||r.payload?.order||`GH-${String(i+1).padStart(5,'0')}`,createdAt:r.created_at,status:r.status||r.payload?.status||'جديد',paid:typeof r.paid==='boolean'?r.paid:!!r.payload?.paid,deleted:typeof r.deleted==='boolean'?r.deleted:!!r.payload?.deleted},i));save('orders',data.orders);await syncInventoryFromOrders();}
   renderOrders();renderOverview();return;
  }
  let r=await backendGet('getOrders');
