@@ -165,7 +165,8 @@ async function reservePromo(applied,subtotal,phone,orderNumber){
  if(!window.GH_SUPABASE_READY||!window.GH_SB)return {ok:false,message:'لازم ربط Supabase عشان استخدام الأكواد يتسجل مركزيًا.'};
  try{const {data,error}=await window.GH_SB.rpc('reserve_promo',{p_code:applied.code,p_subtotal:Number(subtotal||0),p_customer_phone:phone||'',p_order_number:orderNumber});if(error)throw error;return data||{ok:false,message:'تعذر التحقق من الكود'};}catch(err){console.warn('Promo reserve failed',err);return {ok:false,message:'تعذر التحقق من كود الخصم. حاولي تاني.'};}
 }
-function applyManagedCheckoutSettings(){const s=getStoreSettings();const sel=$('#paymentMethod');if(sel&&Array.isArray(s.paymentMethods)){const current=sel.value;sel.innerHTML='<option value="">اختاري طريقة الدفع</option>'+s.paymentMethods.filter(x=>x.enabled!==false).map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('');if(s.paymentMethods.some(x=>x.value===current&&x.enabled!==false))sel.value=current;}}
+const CHECKOUT_GOVERNORATES=['القاهرة','الجيزة','الإسكندرية','القليوبية','الدقهلية','الشرقية','الغربية','المنوفية','البحيرة','كفر الشيخ','دمياط','بورسعيد','الإسماعيلية','السويس','شمال سيناء','جنوب سيناء','بني سويف','الفيوم','المنيا','أسيوط','سوهاج','قنا','الأقصر','أسوان','البحر الأحمر','الوادي الجديد','مطروح'];
+function applyManagedCheckoutSettings(){const s=getStoreSettings();const sel=$('#paymentMethod');if(sel&&Array.isArray(s.paymentMethods)){const current=sel.value;sel.innerHTML='<option value="">اختاري طريقة الدفع</option>'+s.paymentMethods.filter(x=>x.enabled!==false).map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('');if(s.paymentMethods.some(x=>x.value===current&&x.enabled!==false))sel.value=current;}const gov=$('#governorate');if(gov){const current=gov.value,disabled=new Set(s.disabledGovernorates||[]),available=CHECKOUT_GOVERNORATES.filter(g=>!disabled.has(g));gov.innerHTML='<option value="">اختاري المحافظة</option>'+available.map(g=>`<option value="${esc(g)}">${esc(g)}</option>`).join('');if(available.includes(current))gov.value=current;else gov.value='';gov.disabled=available.length===0;const label=gov.closest('.field')?.querySelector('label');if(label&&available.length===0)label.textContent='المحافظة (الشحن غير متاح حاليًا)';else if(label)label.textContent='المحافظة';}}
 function initCheckout(){
  const f=$('#checkoutForm');if(!f)return;applyManagedCheckoutSettings();
  let amounts=checkoutAmounts();
@@ -178,6 +179,7 @@ function initCheckout(){
  if(f.dataset.bound)return;f.dataset.bound='1';
  f.addEventListener('submit',async e=>{
   e.preventDefault();amounts=checkoutAmounts();if(!amounts.valid.length){toast(tr('emptyCart'));return;}
+  const chosenGovernorate=$('#governorate')?.value||'',storeSettings=getStoreSettings();if(!chosenGovernorate||(storeSettings.disabledGovernorates||[]).includes(chosenGovernorate)){toast('اختاري محافظة متاح الشحن ليها');return;}
   const applied=getAppliedPromo();const order='GH-'+Math.floor(100000+Math.random()*900000);const name=$('#customerName')?.value.trim()||'';const phone=$('#customerPhone')?.value.trim()||'';const governorate=$('#governorate')?.value||'';const address=$('#address')?.value.trim()||'';const payment=$('#paymentMethod')?.value||'';
   const btn=f.querySelector('button[type=submit]');if(btn){btn.disabled=true;btn.dataset.originalText=btn.textContent;btn.textContent=getLang()==='en'?'Sending...':'جاري إرسال الطلب...';}
   let centralPromo={ok:true,discount:amounts.promoDiscount,promoPercent:amounts.promoPercent};
@@ -313,7 +315,7 @@ document.addEventListener('girlhub:data-updated',e=>{
    if(id){const p=getProduct(id);if(p)updateProductDetailLive(p)}
    refreshOfferSliderData();
  }
- if((d.promos||d.products)&&typeof updateCheckoutTotal==='function'&&document.querySelector('#checkoutForm'))updateCheckoutTotal();
+ if((d.promos||d.products||d.settings)&&typeof updateCheckoutTotal==='function'&&document.querySelector('#checkoutForm'))updateCheckoutTotal();
 });
 document.addEventListener('DOMContentLoaded',()=>{applyClosedCategoryPresentation();try{applyRemoteStoreContent({promos:JSON.parse(localStorage.getItem('girlhub_remote_promos')||'null'),categories:JSON.parse(localStorage.getItem('girlhub_remote_categories')||'[]'),banners:JSON.parse(localStorage.getItem('girlhub_remote_banners')||'[]'),settings:JSON.parse(localStorage.getItem('girlhub_remote_settings')||'null')})}catch(e){}});
 
