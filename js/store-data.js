@@ -31,8 +31,16 @@
     let oldStamp='';try{oldStamp=localStorage.getItem('girlhub_remote_updated_'+row.kind)||''}catch(_){}
     try{localStorage.setItem('girlhub_remote_'+row.kind,JSON.stringify(row.data));localStorage.setItem('girlhub_remote_updated_'+row.kind,stamp)}catch(_){}
     if(stamp!==oldStamp)d[row.kind]=row.data;
-    if(row.kind==='products'&&stamp!==oldStamp&&Array.isArray(row.data)&&typeof PRODUCTS!=='undefined'){
-      PRODUCTS.splice(0,PRODUCTS.length,...row.data);try{localStorage.setItem('girlhub_admin_products',JSON.stringify(row.data))}catch(_){}
+    // Always reconcile the in-memory catalog with Supabase, even if the timestamp
+    // was already cached. DOMContentLoaded/local preview code may have restored stale localStorage.
+    if(row.kind==='products'&&Array.isArray(row.data)&&typeof PRODUCTS!=='undefined'){
+      let current='';try{current=JSON.stringify(PRODUCTS)}catch(_){}
+      const remote=JSON.stringify(row.data);
+      if(current!==remote){
+        PRODUCTS.splice(0,PRODUCTS.length,...row.data);
+        try{localStorage.setItem('girlhub_admin_products',remote)}catch(_){}
+        d.products=row.data;
+      }
     }
   });
   if(Object.keys(d).length)document.dispatchEvent(new CustomEvent('girlhub:data-updated',{detail:d}));
@@ -57,7 +65,9 @@
  }
  // Keep an already-open storefront preview in sync when the dashboard is saved in another tab.
  window.addEventListener('storage',e=>{
-  if(Object.values(pairs).some(keys=>keys.includes(e.key))){bridgeLocal();}
+  if(!(window.GH_SUPABASE_READY && window.GH_SB)&&Object.values(pairs).some(keys=>keys.includes(e.key))){bridgeLocal();}
  });
- document.addEventListener('DOMContentLoaded',bridgeLocal);
+ // Local fallback is for offline/local previews only. Do not let it overwrite
+ // the Supabase catalog after page load on the published storefront.
+ if(!(window.GH_SUPABASE_READY && window.GH_SB))document.addEventListener('DOMContentLoaded',bridgeLocal);
 })();
