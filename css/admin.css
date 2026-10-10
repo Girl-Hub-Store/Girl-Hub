@@ -60,3 +60,9 @@
 .gallery-order-btn:hover{background:#ead5df}
 .gallery-main-label{display:block;text-align:center;font-size:9px;color:#a13c70;font-weight:700;min-height:12px;margin-top:2px}
 .gallery-remove{top:-7px;right:-7px}
+
+/* Safe mobile logout visibility */
+@media(max-width:760px){.side-bottom{display:flex!important;align-items:center;justify-content:flex-end;gap:8px;margin-top:8px;padding:8px 2px 2px;border-top:1px solid var(--line,#eadfe3)}.side-bottom>a{font-size:11px;padding:8px 10px;border-radius:8px;background:#fff7fa}.side-bottom #logoutBtn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:9px 14px;border:1px solid #edc6d5;border-radius:9px;background:#fff;color:#8f315a;font:inherit;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}}
+/* Color visibility control remains separate from deleting a color. */
+.color-editor-row{grid-template-columns:minmax(100px,1fr) 54px minmax(115px,auto) auto}.color-editor-row .color-visibility{font-size:11px!important;white-space:nowrap}.color-editor-row .color-visibility input{width:auto!important;min-height:0!important}
+@media(max-width:760px){.color-editor-row{grid-template-columns:minmax(0,1fr) 48px}.color-editor-row .color-visibility{grid-column:1}.color-editor-row [data-remove-color]{grid-column:2;grid-row:2;justify-self:end}}
